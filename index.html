@@ -393,9 +393,9 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
             <div class="lbl">Tỉ lệ (rộng : cao)</div>
             <div class="ratio-chips" id="ratioChips"></div>
             <div class="ratio-in">
-              <input class="num" id="ratioW" type="number" min="1" max="100" value="3">
+              <input class="num" id="ratioW" type="number" min="1" max="999" value="3">
               <span class="ratio-x">:</span>
-              <input class="num" id="ratioH" type="number" min="1" max="100" value="4">
+              <input class="num" id="ratioH" type="number" min="1" max="999" value="4">
             </div>
           </div>
           <div class="row2">
@@ -436,11 +436,15 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
       <!-- 3. KHUNG -->
       <div class="card">
         <div class="sec">
-          <div class="sec-h"><div class="sec-n">3</div><h3>Khung (đè lên trên)</h3><span class="hint" id="frmHint">không khung</span></div>
+          <div class="sec-h"><div class="sec-n">3</div><h3>Khung</h3><span class="hint" id="frmHint">không khung</span></div>
           <div class="lbl">Ảnh khung — nên là PNG nền trong suốt</div>
           <div class="frames" id="frames"></div>
           <div class="frm-ctl" id="frmCtl">
             <div class="divide"></div>
+            <div class="field">
+              <div class="lbl">Vị trí lớp khung</div>
+              <div class="seg" id="segZ"></div>
+            </div>
             <div class="field">
               <div class="lbl">Cách vẽ khung lên ảnh</div>
               <div class="seg" id="segFit"></div>
@@ -608,7 +612,7 @@ const state={
 const S={
   bg:{type:'white',color:'#ffffff',imageId:null,fit:'cover'},
   fg:{scale:100,offX:0,offY:0,rotate:0},
-  frame:{id:null,fit:'stretch',scale:100,offX:0,offY:0,rotate:0,opacity:100},
+  frame:{id:null,z:'over',fit:'stretch',scale:100,offX:0,offY:0,rotate:0,opacity:100},
   canvas:{mode:'original',maxDim:0,ratioW:3,ratioH:4},
   output:{format:'auto',qmode:'original',quality:90}
 };
@@ -669,7 +673,7 @@ function buildPanel(){
     S.canvas.mode=v; $('#fldRatio').style.display=v==='ratio'?'':'none'; schedule();
   });
   buildRatioChips();
-  const syncRatio=()=>{ S.canvas.ratioW=Math.max(1,+$('#ratioW').value||1); S.canvas.ratioH=Math.max(1,+$('#ratioH').value||1); markRatioChip(); schedule(); };
+  const syncRatio=()=>{ const wv=parseInt($('#ratioW').value,10), hv=parseInt($('#ratioH').value,10); if(wv>=1)S.canvas.ratioW=wv; if(hv>=1)S.canvas.ratioH=hv; markRatioChip(); schedule(); };
   $('#ratioW').oninput=syncRatio; $('#ratioH').oninput=syncRatio;
   Sel($('#selMax'),[{v:0,label:'Không đổi'},{v:1000,label:'1000 px'},{v:1200,label:'1200 px'},{v:2000,label:'2000 px'},{v:-1,label:'Tùy chỉnh'}],()=>S.canvas.maxDim,v=>{
     if(v===-1){ $('#fldCustomDim').style.display=''; S.canvas.maxDim=+$('#customDim').value||1200; }
@@ -694,7 +698,8 @@ function buildPanel(){
   fgUI.rot  =Slider($('#fldFgRot'),'Xoay ảnh',-180,180,1,()=>S.fg.rotate,v=>{S.fg.rotate=v;schedule();},v=>v+'°');
   $('#btnFgReset').onclick=()=>{ S.fg={scale:100,offX:0,offY:0,rotate:0}; fgUI.scale.set(100); fgUI.offX.set(0); fgUI.offY.set(0); fgUI.rot.set(0); schedule(); };
 
-  /* --- 3. Khung (đè trên) --- */
+  /* --- 3. Khung --- */
+  Seg($('#segZ'),[{v:'under',label:'Dưới ảnh'},{v:'over',label:'Trên ảnh'}],()=>S.frame.z,v=>{S.frame.z=v;schedule();});
   Seg($('#segFit'),[{v:'stretch',label:'Kéo đầy'},{v:'contain',label:'Vừa khít'},{v:'cover',label:'Phủ'}],()=>S.frame.fit,v=>{S.frame.fit=v;schedule();});
   Slider($('#fldScale'),'Cỡ khung',50,150,1,()=>S.frame.scale,v=>{S.frame.scale=v;schedule();},v=>v+'%');
   Slider($('#fldOffX'),'Lệch ngang',-25,25,1,()=>S.frame.offX,v=>{S.frame.offX=v;schedule();},v=>v+'%');
@@ -766,8 +771,7 @@ function updateFrameUI(){
   renderFrameAssets();
   const has=S.frame.id!==null;
   $('#frmCtl').classList.toggle('show',has);
-  const f=asset(S.frame.id);
-  $('#frmHint').textContent=has?(f?f.name:'').slice(0,18):'không khung';
+  $('#frmHint').textContent=has?'đang dùng':'không khung';
 }
 function delAsset(id){
   const f=asset(id); if(f){ URL.revokeObjectURL(f.url); f.bmp&&f.bmp.close&&f.bmp.close(); }
@@ -971,8 +975,10 @@ function outName(img,type){
 }
 function paint(ctx,cw,ch,bmp){
   fillBg(ctx,cw,ch,bmp);
+  const fr=(S.frame.id!==null)?asset(S.frame.id):null;
+  if(fr&&fr.bmp&&S.frame.z==='under')drawFrame(ctx,fr.bmp,cw,ch);
   drawFg(ctx,bmp,cw,ch);
-  if(S.frame.id!==null){ const f=asset(S.frame.id); if(f&&f.bmp)drawFrame(ctx,f.bmp,cw,ch); }
+  if(fr&&fr.bmp&&S.frame.z==='over')drawFrame(ctx,fr.bmp,cw,ch);
 }
 async function renderCanvas(bmp,dims){
   const c=makeCanvas(dims.w,dims.h);
