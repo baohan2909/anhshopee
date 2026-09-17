@@ -263,14 +263,13 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
 .cmp{position:relative;width:100%;border-radius:11px;overflow:hidden;border:1px solid var(--line);
   background-image:linear-gradient(45deg,#1a2740 25%,transparent 25%),linear-gradient(-45deg,#1a2740 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#1a2740 75%),linear-gradient(-45deg,transparent 75%,#1a2740 75%);
   background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;background-color:#0f1a2e;
-  aspect-ratio:1;cursor:ew-resize;user-select:none;touch-action:none}
-.cmp img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}
-.cmp .after{clip-path:inset(0 calc(100% - var(--pos,55%)) 0 0)}
-.cmp .handle{position:absolute;top:0;bottom:0;left:var(--pos,55%);width:2px;background:var(--teal);transform:translateX(-1px);box-shadow:0 0 10px rgba(63,182,168,.7);pointer-events:none}
-.cmp .handle::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;background:var(--teal);border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.5)}
-.cmp .tag{position:absolute;top:9px;font-size:10px;font-weight:700;letter-spacing:.06em;padding:4px 9px;border-radius:6px;background:rgba(11,18,32,.78);backdrop-filter:blur(4px);color:#fff;pointer-events:none;z-index:2}
-.cmp .tag.l{left:9px}
-.cmp .tag.r{right:9px;color:var(--teal-lite)}
+  aspect-ratio:1;cursor:grab;user-select:none;touch-action:none}
+.cmp.grabbing{cursor:grabbing}
+.cmp img,.cmp canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;display:block}
+.cmp-hint{position:absolute;left:9px;bottom:9px;display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600;padding:5px 9px;border-radius:7px;background:rgba(11,18,32,.72);backdrop-filter:blur(4px);color:rgba(231,237,245,.85);pointer-events:none;z-index:2}
+.cmp-hint svg{width:13px;height:13px;color:var(--teal-lite)}
+.cmp-cmp{position:absolute;top:9px;right:9px;z-index:3;font-size:11px;font-weight:600;padding:6px 11px;border-radius:8px;background:rgba(11,18,32,.72);backdrop-filter:blur(4px);color:#fff;border:1px solid rgba(255,255,255,.18);cursor:pointer;transition:background .14s}
+.cmp-cmp:hover{background:var(--teal-deep);border-color:var(--teal-deep)}
 .pv-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .pv-stats .st3{grid-column:span 2}
 .stat{background:var(--card-2);border:1px solid var(--line);border-radius:10px;padding:12px 13px;display:flex;align-items:center;gap:12px}
@@ -382,36 +381,10 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
     <!-- ---------- LEFT : pipeline / settings ---------- -->
     <div class="col left scroll">
 
-      <!-- 1. KHUNG -->
+      <!-- 1. KHỔ & NỀN -->
       <div class="card">
         <div class="sec">
-          <div class="sec-h"><div class="sec-n">1</div><h3>Khung viền</h3><span class="hint" id="frmHint">chưa chọn</span></div>
-          <div class="lbl">Thư viện khung</div>
-          <div class="frames" id="frames"></div>
-          <div class="frm-ctl" id="frmCtl">
-            <div class="divide"></div>
-            <div class="field">
-              <div class="lbl">Cách vẽ khung lên ảnh</div>
-              <div class="seg" id="segFit"></div>
-            </div>
-            <div class="field" id="fldScale"></div>
-            <div class="row2">
-              <div class="field" id="fldOffX"></div>
-              <div class="field" id="fldOffY"></div>
-            </div>
-            <div class="row2">
-              <div class="field" id="fldRot"></div>
-              <div class="field" id="fldOpa"></div>
-            </div>
-            <div class="field" id="fldInset"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 2. KÍCH THƯỚC -->
-      <div class="card">
-        <div class="sec">
-          <div class="sec-h"><div class="sec-n">2</div><h3>Kích thước &amp; nền</h3></div>
+          <div class="sec-h"><div class="sec-n">1</div><h3>Khổ &amp; nền</h3></div>
           <div class="field">
             <div class="lbl">Khung hình</div>
             <div class="seg" id="segMode"></div>
@@ -429,21 +402,66 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
             <div class="field"><div class="lbl">Cạnh dài tối đa</div><div id="selMax"></div></div>
             <div class="field" id="fldCustomDim" style="display:none"><div class="lbl">Số px</div><input class="num" id="customDim" type="number" min="200" max="8000" value="1200"></div>
           </div>
+          <div class="divide"></div>
           <div class="field">
-            <div class="lbl">Nền (khi ảnh không lấp đầy khung hình)</div>
-            <div class="seg" id="segFill"></div>
+            <div class="lbl">Nền phía sau ảnh</div>
+            <div class="seg" id="segBg"></div>
           </div>
-          <div class="field" id="fldFillColor" style="display:none">
+          <div class="field" id="fldBgColor" style="display:none">
             <div class="lbl">Màu nền</div>
-            <input class="inp" id="fillColor" type="color" value="#ffffff" style="padding:3px;height:38px;cursor:pointer">
+            <input class="inp" id="bgColor" type="color" value="#ffffff" style="padding:3px;height:38px;cursor:pointer">
+          </div>
+          <div id="bgImgWrap" style="display:none">
+            <div class="lbl">Chọn ảnh làm nền</div>
+            <div class="frames" id="bgAssets"></div>
+            <div class="field" id="fldBgFit" style="margin-top:12px"></div>
           </div>
         </div>
       </div>
 
-      <!-- 3. CHẤT LƯỢNG XUẤT -->
+      <!-- 2. ẢNH SẢN PHẨM -->
       <div class="card">
         <div class="sec">
-          <div class="sec-h"><div class="sec-n">3</div><h3>Chất lượng xuất</h3></div>
+          <div class="sec-h"><div class="sec-n">2</div><h3>Ảnh sản phẩm</h3><span class="hint">kéo &amp; lăn chuột ở khung xem trước</span></div>
+          <div class="field" id="fldFgScale"></div>
+          <div class="row2">
+            <div class="field" id="fldFgX"></div>
+            <div class="field" id="fldFgY"></div>
+          </div>
+          <div class="field" id="fldFgRot"></div>
+          <button class="btn-mini" id="btnFgReset" style="width:100%;justify-content:center;height:34px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"/></svg>Căn giữa lại</button>
+        </div>
+      </div>
+
+      <!-- 3. KHUNG -->
+      <div class="card">
+        <div class="sec">
+          <div class="sec-h"><div class="sec-n">3</div><h3>Khung (đè lên trên)</h3><span class="hint" id="frmHint">không khung</span></div>
+          <div class="lbl">Ảnh khung — nên là PNG nền trong suốt</div>
+          <div class="frames" id="frames"></div>
+          <div class="frm-ctl" id="frmCtl">
+            <div class="divide"></div>
+            <div class="field">
+              <div class="lbl">Cách vẽ khung lên ảnh</div>
+              <div class="seg" id="segFit"></div>
+            </div>
+            <div class="field" id="fldScale"></div>
+            <div class="row2">
+              <div class="field" id="fldOffX"></div>
+              <div class="field" id="fldOffY"></div>
+            </div>
+            <div class="row2">
+              <div class="field" id="fldRot"></div>
+              <div class="field" id="fldOpa"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. CHẤT LƯỢNG XUẤT -->
+      <div class="card">
+        <div class="sec">
+          <div class="sec-h"><div class="sec-n">4</div><h3>Chất lượng xuất</h3></div>
           <div class="field">
             <div class="lbl">Định dạng file</div>
             <div id="selFmt"></div>
@@ -588,10 +606,13 @@ const state={
   seq:0,
 };
 const S={
-  frame:{id:null,fit:'stretch',scale:100,offX:0,offY:0,rotate:0,opacity:100,inset:0},
-  canvas:{mode:'original',maxDim:0,fill:'white',fillColor:'#ffffff',ratioW:3,ratioH:4},
+  bg:{type:'white',color:'#ffffff',imageId:null,fit:'cover'},
+  fg:{scale:100,offX:0,offY:0,rotate:0},
+  frame:{id:null,fit:'stretch',scale:100,offX:0,offY:0,rotate:0,opacity:100},
+  canvas:{mode:'original',maxDim:0,ratioW:3,ratioH:4},
   output:{format:'auto',qmode:'original',quality:90}
 };
+const fgUI={};   // tham chiếu slider ảnh sản phẩm (đồng bộ khi kéo/phóng trên preview)
 
 /* ================= helpers ================= */
 function fmtBytes(n){ if(n<1024)return n+' B'; if(n<1048576)return (n/1024).toFixed(n<10240?1:0)+' KB'; if(n<1073741824)return (n/1048576).toFixed(n<10485760?1:1)+' MB'; return (n/1073741824).toFixed(2)+' GB'; }
@@ -637,19 +658,13 @@ function Slider(host,label,min,max,step,get,set,fmt){
   upFill();
   inp.oninput=()=>{ v.textContent=fmt(+inp.value); upFill(); set(+inp.value); };
   host.appendChild(h); host.appendChild(inp);
+  return { set:(val)=>{ inp.value=val; v.textContent=fmt(+val); upFill(); } };
 }
 
 /* ================= build settings panel ================= */
 function schedule(){ schedulePreview(); }
 function buildPanel(){
-  Seg($('#segFit'),[{v:'stretch',label:'Kéo đầy'},{v:'contain',label:'Vừa khít'},{v:'cover',label:'Phủ'}],()=>S.frame.fit,v=>{S.frame.fit=v;schedule();});
-  Slider($('#fldScale'),'Cỡ khung',50,150,1,()=>S.frame.scale,v=>{S.frame.scale=v;schedule();},v=>v+'%');
-  Slider($('#fldOffX'),'Lệch ngang',-25,25,1,()=>S.frame.offX,v=>{S.frame.offX=v;schedule();},v=>v+'%');
-  Slider($('#fldOffY'),'Lệch dọc',-25,25,1,()=>S.frame.offY,v=>{S.frame.offY=v;schedule();},v=>v+'%');
-  Slider($('#fldRot'),'Xoay khung',-180,180,1,()=>S.frame.rotate,v=>{S.frame.rotate=v;schedule();},v=>v+'°');
-  Slider($('#fldOpa'),'Độ mờ khung',0,100,1,()=>S.frame.opacity,v=>{S.frame.opacity=v;schedule();},v=>v+'%');
-  Slider($('#fldInset'),'Lề ảnh (đẩy ảnh vào trong khung)',0,25,1,()=>S.frame.inset,v=>{S.frame.inset=v;schedule();},v=>v+'%');
-
+  /* --- 1. Khổ & nền --- */
   Seg($('#segMode'),[{v:'original',label:'Giữ nguyên'},{v:'square',label:'Vuông 1:1'},{v:'ratio',label:'Tùy chỉnh'}],()=>S.canvas.mode,v=>{
     S.canvas.mode=v; $('#fldRatio').style.display=v==='ratio'?'':'none'; schedule();
   });
@@ -662,11 +677,32 @@ function buildPanel(){
     schedule();
   });
   $('#customDim').oninput=()=>{ if(S.canvas.maxDim!==0){ S.canvas.maxDim=Math.max(200,+$('#customDim').value||1200); schedule(); } };
-  Seg($('#segFill'),[{v:'white',label:'Trắng'},{v:'color',label:'Màu'},{v:'blur',label:'Làm mờ ảnh'}],()=>S.canvas.fill,v=>{
-    S.canvas.fill=v; $('#fldFillColor').style.display=v==='color'?'':'none'; schedule();
+  Seg($('#segBg'),[{v:'white',label:'Trắng'},{v:'color',label:'Màu'},{v:'blur',label:'Ảnh mờ'},{v:'image',label:'Ảnh'}],()=>S.bg.type,v=>{
+    S.bg.type=v;
+    $('#fldBgColor').style.display=v==='color'?'':'none';
+    $('#bgImgWrap').style.display=v==='image'?'':'none';
+    if(v==='image')renderBgAssets();
+    schedule();
   });
-  $('#fillColor').oninput=()=>{ S.canvas.fillColor=$('#fillColor').value; schedule(); };
+  $('#bgColor').oninput=()=>{ S.bg.color=$('#bgColor').value; schedule(); };
+  Seg($('#fldBgFit'),[{v:'cover',label:'Phủ'},{v:'contain',label:'Vừa'},{v:'stretch',label:'Kéo đầy'}],()=>S.bg.fit,v=>{S.bg.fit=v;schedule();});
 
+  /* --- 2. Ảnh sản phẩm --- */
+  fgUI.scale=Slider($('#fldFgScale'),'Cỡ ảnh',10,300,1,()=>S.fg.scale,v=>{S.fg.scale=v;schedule();},v=>v+'%');
+  fgUI.offX =Slider($('#fldFgX'),'Lệch ngang',-100,100,1,()=>S.fg.offX,v=>{S.fg.offX=v;schedule();},v=>v+'%');
+  fgUI.offY =Slider($('#fldFgY'),'Lệch dọc',-100,100,1,()=>S.fg.offY,v=>{S.fg.offY=v;schedule();},v=>v+'%');
+  fgUI.rot  =Slider($('#fldFgRot'),'Xoay ảnh',-180,180,1,()=>S.fg.rotate,v=>{S.fg.rotate=v;schedule();},v=>v+'°');
+  $('#btnFgReset').onclick=()=>{ S.fg={scale:100,offX:0,offY:0,rotate:0}; fgUI.scale.set(100); fgUI.offX.set(0); fgUI.offY.set(0); fgUI.rot.set(0); schedule(); };
+
+  /* --- 3. Khung (đè trên) --- */
+  Seg($('#segFit'),[{v:'stretch',label:'Kéo đầy'},{v:'contain',label:'Vừa khít'},{v:'cover',label:'Phủ'}],()=>S.frame.fit,v=>{S.frame.fit=v;schedule();});
+  Slider($('#fldScale'),'Cỡ khung',50,150,1,()=>S.frame.scale,v=>{S.frame.scale=v;schedule();},v=>v+'%');
+  Slider($('#fldOffX'),'Lệch ngang',-25,25,1,()=>S.frame.offX,v=>{S.frame.offX=v;schedule();},v=>v+'%');
+  Slider($('#fldOffY'),'Lệch dọc',-25,25,1,()=>S.frame.offY,v=>{S.frame.offY=v;schedule();},v=>v+'%');
+  Slider($('#fldRot'),'Xoay khung',-180,180,1,()=>S.frame.rotate,v=>{S.frame.rotate=v;schedule();},v=>v+'°');
+  Slider($('#fldOpa'),'Độ mờ khung',0,100,1,()=>S.frame.opacity,v=>{S.frame.opacity=v;schedule();},v=>v+'%');
+
+  /* --- 4. Xuất --- */
   Sel($('#selFmt'),[{v:'auto',label:'Giữ nguyên định dạng gốc'},{v:'jpeg',label:'JPG'},{v:'png',label:'PNG'},{v:'webp',label:'WebP'}],()=>S.output.format,v=>{S.output.format=v;updateExtWarn();schedule();});
   Seg($('#segQ'),[{v:'original',label:'Gốc'},{v:'custom',label:'Tùy chỉnh'}],()=>S.output.qmode,v=>{
     S.output.qmode=v; $('#fldQ').style.display=v==='custom'?'':'none'; schedule();
@@ -690,51 +726,72 @@ function markRatioChip(){
   });
 }
 
-/* ================= frames ================= */
-function renderFrames(){
-  const host=$('#frames'); host.innerHTML='';
-  // none
+/* ================= ảnh đính kèm (dùng cho Nền & Khung) ================= */
+let pendingRole='frame';
+function asset(id){ return state.frames.find(x=>x.id===id); }
+
+function renderFrameAssets(){
+  const host=$('#frames'); if(!host)return; host.innerHTML='';
   const none=document.createElement('div'); none.className='ftile none'+(S.frame.id===null?' on':'');
   none.innerHTML='<div class="nl">Không<br>khung</div><div class="tick">'+IC.check+'</div>';
   none.onclick=()=>{ S.frame.id=null; updateFrameUI(); schedule(); };
   host.appendChild(none);
   state.frames.forEach(f=>{
     const t=document.createElement('div'); t.className='ftile'+(S.frame.id===f.id?' on':'');
-    t.innerHTML='<img src="'+f.url+'"><div class="tick">'+IC.check+'</div><button class="del" title="Xóa khung">'+IC.x+'</button>';
-    t.querySelector('img').onclick=()=>{ S.frame.id=f.id; updateFrameUI(); schedule(); };
+    t.innerHTML='<img src="'+f.url+'"><div class="tick">'+IC.check+'</div><button class="del" title="Xóa ảnh">'+IC.x+'</button>';
     t.onclick=e=>{ if(e.target.closest('.del'))return; S.frame.id=f.id; updateFrameUI(); schedule(); };
-    t.querySelector('.del').onclick=e=>{ e.stopPropagation(); delFrame(f.id); };
+    t.querySelector('.del').onclick=e=>{ e.stopPropagation(); delAsset(f.id); };
     host.appendChild(t);
   });
-  const add=document.createElement('div'); add.className='ftile add'; add.title='Thêm khung PNG';
+  const add=document.createElement('div'); add.className='ftile add'; add.title='Thêm ảnh khung';
   add.innerHTML=IC.plus;
-  add.onclick=()=>$('#frameInput').click();
+  add.onclick=()=>{ pendingRole='frame'; $('#frameInput').click(); };
+  host.appendChild(add);
+}
+function renderBgAssets(){
+  const host=$('#bgAssets'); if(!host)return; host.innerHTML='';
+  state.frames.forEach(f=>{
+    const t=document.createElement('div'); t.className='ftile'+(S.bg.imageId===f.id?' on':'');
+    t.innerHTML='<img src="'+f.url+'"><div class="tick">'+IC.check+'</div><button class="del" title="Xóa ảnh">'+IC.x+'</button>';
+    t.onclick=e=>{ if(e.target.closest('.del'))return; S.bg.imageId=f.id; renderBgAssets(); schedule(); };
+    t.querySelector('.del').onclick=e=>{ e.stopPropagation(); delAsset(f.id); };
+    host.appendChild(t);
+  });
+  const add=document.createElement('div'); add.className='ftile add'; add.title='Thêm ảnh nền';
+  add.innerHTML=IC.plus;
+  add.onclick=()=>{ pendingRole='bg'; $('#frameInput').click(); };
   host.appendChild(add);
 }
 function updateFrameUI(){
-  renderFrames();
+  renderFrameAssets();
   const has=S.frame.id!==null;
   $('#frmCtl').classList.toggle('show',has);
-  const f=state.frames.find(x=>x.id===S.frame.id);
+  const f=asset(S.frame.id);
   $('#frmHint').textContent=has?(f?f.name:'').slice(0,18):'không khung';
 }
-function delFrame(id){
-  const f=state.frames.find(x=>x.id===id); if(f){ URL.revokeObjectURL(f.url); f.bmp&&f.bmp.close&&f.bmp.close(); }
+function delAsset(id){
+  const f=asset(id); if(f){ URL.revokeObjectURL(f.url); f.bmp&&f.bmp.close&&f.bmp.close(); }
   state.frames=state.frames.filter(x=>x.id!==id);
   if(S.frame.id===id)S.frame.id=null;
-  updateFrameUI(); schedule();
+  if(S.bg.imageId===id)S.bg.imageId=null;
+  updateFrameUI(); renderBgAssets(); schedule();
 }
-async function addFrames(files){
+async function addAssets(files,role){
+  let last=null;
   for(const file of files){
     if(!isImg(file,file.name))continue;
     try{
       const bmp=await createImageBitmap(file);
       const id='f'+(++state.seq);
       state.frames.push({id,name:file.name,url:URL.createObjectURL(file),bmp});
-      S.frame.id=id;
-    }catch(e){ toast('Không đọc được khung: '+file.name,true); }
+      last=id;
+    }catch(e){ toast('Không đọc được ảnh: '+file.name,true); }
   }
-  updateFrameUI(); schedule();
+  if(last){
+    if(role==='bg'){ S.bg.imageId=last; }
+    else { S.frame.id=last; }
+  }
+  updateFrameUI(); renderBgAssets(); schedule();
 }
 
 /* ================= import images ================= */
@@ -860,21 +917,30 @@ function computeDims(bw,bh){
 }
 function containRect(iw,ih,bw,bh){ const s=Math.min(bw/iw,bh/ih); const w=iw*s,h=ih*s; return {x:(bw-w)/2,y:(bh-h)/2,w,h}; }
 function coverRect(iw,ih,bw,bh){ const s=Math.max(bw/iw,bh/ih); const w=iw*s,h=ih*s; return {x:(bw-w)/2,y:(bh-h)/2,w,h}; }
+function drawAssetFill(ctx,ab,cw,ch,fit){
+  if(fit==='stretch'){ ctx.imageSmoothingQuality='high'; ctx.drawImage(ab,0,0,cw,ch); return; }
+  const r=fit==='contain'?containRect(ab.width,ab.height,cw,ch):coverRect(ab.width,ab.height,cw,ch);
+  ctx.imageSmoothingQuality='high';
+  ctx.drawImage(ab,r.x,r.y,r.w,r.h);
+}
 function fillBg(ctx,cw,ch,bmp){
-  if(S.canvas.fill==='blur'){
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cw,ch);   // đáy trắng: chống trong suốt khi xuất JPG
+  const t=S.bg.type;
+  if(t==='color'){ ctx.fillStyle=S.bg.color; ctx.fillRect(0,0,cw,ch); }
+  else if(t==='blur'){
     ctx.save(); ctx.filter='blur('+Math.max(8,Math.round(Math.min(cw,ch)/38))+'px)';
     const r=coverRect(bmp.width,bmp.height,cw,ch); ctx.drawImage(bmp,r.x-6,r.y-6,r.w+12,r.h+12); ctx.restore();
     ctx.save(); ctx.globalAlpha=.10; ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cw,ch); ctx.restore();
-  }else{
-    ctx.fillStyle=S.canvas.fill==='color'?S.canvas.fillColor:'#ffffff'; ctx.fillRect(0,0,cw,ch);
   }
+  else if(t==='image'){ const a=asset(S.bg.imageId); if(a&&a.bmp)drawAssetFill(ctx,a.bmp,cw,ch,S.bg.fit); }
 }
-function drawImg(ctx,bmp,cw,ch){
-  const ins=S.frame.inset/100;
-  const bx=cw*ins, by=ch*ins, bw=cw*(1-2*ins), bh=ch*(1-2*ins);
-  const r=containRect(bmp.width,bmp.height,bw,bh);
+function drawFg(ctx,bmp,cw,ch){
+  const base=containRect(bmp.width,bmp.height,cw,ch);   // cỡ 100% = vừa khít khung theo tỉ lệ ảnh
+  const sc=S.fg.scale/100, w=base.w*sc, h=base.h*sc;
+  const cx=cw/2+S.fg.offX/100*cw, cy=ch/2+S.fg.offY/100*ch;
+  ctx.save(); ctx.translate(cx,cy); if(S.fg.rotate)ctx.rotate(S.fg.rotate*Math.PI/180);
   ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-  ctx.drawImage(bmp,bx+r.x,by+r.y,r.w,r.h);
+  ctx.drawImage(bmp,-w/2,-h/2,w,h); ctx.restore();
 }
 function drawFrame(ctx,fb,cw,ch){
   const f=S.frame, fr=fb.width/fb.height, cr=cw/ch; let bw,bh;
@@ -903,11 +969,14 @@ function outName(img,type){
   const ext=compat?srcExt:typeExt;
   return {name:dir+stem+'.'+ext,changed:ext!==srcExt};
 }
+function paint(ctx,cw,ch,bmp){
+  fillBg(ctx,cw,ch,bmp);
+  drawFg(ctx,bmp,cw,ch);
+  if(S.frame.id!==null){ const f=asset(S.frame.id); if(f&&f.bmp)drawFrame(ctx,f.bmp,cw,ch); }
+}
 async function renderCanvas(bmp,dims){
-  const c=makeCanvas(dims.w,dims.h), ctx=c.getContext('2d');
-  fillBg(ctx,dims.w,dims.h,bmp);
-  drawImg(ctx,bmp,dims.w,dims.h);
-  if(S.frame.id!==null){ const f=state.frames.find(x=>x.id===S.frame.id); if(f&&f.bmp)drawFrame(ctx,f.bmp,dims.w,dims.h); }
+  const c=makeCanvas(dims.w,dims.h);
+  paint(c.getContext('2d'),dims.w,dims.h,bmp);
   return c;
 }
 async function processImage(img){
@@ -922,24 +991,41 @@ async function processImage(img){
   img.outBlob=blob; img.outSize=blob.size; img.outW=dims.w; img.outH=dims.h; return blob;
 }
 
-/* ================= preview ================= */
-let pvCache={id:null,bmp:null}, pvAfterUrl=null, pvTimer=null;
-function schedulePreview(){ clearTimeout(pvTimer); pvTimer=setTimeout(renderPreview,110); }
+/* ================= preview (khung căn chỉnh) ================= */
+let pvCache={id:null,bmp:null}, pvTimer=null, pvDisp=null, pvExact=true, pvPaintReq=false, statsTimer=null;
+function schedulePreview(){ clearTimeout(pvTimer); pvTimer=setTimeout(renderPreview,80); }
+function clampN(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function livePreview(){ if(!pvPaintReq){ pvPaintReq=true; requestAnimationFrame(()=>{ pvPaintReq=false; paintOnly(); }); } clearTimeout(statsTimer); statsTimer=setTimeout(updateStats,150); }
+function setFgOff(x,y){ S.fg.offX=clampN(Math.round(x),-120,120); S.fg.offY=clampN(Math.round(y),-120,120); fgUI.offX&&fgUI.offX.set(S.fg.offX); fgUI.offY&&fgUI.offY.set(S.fg.offY); livePreview(); }
+function setFgScale(s){ S.fg.scale=clampN(Math.round(s),10,300); fgUI.scale&&fgUI.scale.set(S.fg.scale); livePreview(); }
+function pvCanvas(){ return document.getElementById('pvAfterC'); }
+function paintOnly(){ const cv=pvCanvas(); if(!cv||!pvCache.bmp||!pvDisp)return; paint(cv.getContext('2d'),pvDisp.w,pvDisp.h,pvCache.bmp); }
+async function updateStats(){
+  const cv=pvCanvas(), img=state.images.find(i=>i.id===state.previewId); if(!cv||!img)return;
+  const {type,q}=outParams(img);
+  let blob; try{ blob=await canvasBlob(cv,type,q); }catch(e){ return; }
+  const on=outName(img,type);
+  const stS=$('#stSize'); if(stS)stS.innerHTML=(pvExact?'':'≈ ')+fmtBytes(blob.size).replace(/ (\w+)$/,' <small>$1</small>');
+  const stD=$('#stDim'); if(stD)stD.textContent=(pvDisp?pvTrue.w:'—')+'×'+(pvDisp?pvTrue.h:'—');
+  const fmtName=type==='image/png'?'PNG':type==='image/webp'?'WebP':'JPG';
+  const stF=$('#stFmt'); if(stF)stF.innerHTML=fmtName+(on.changed?' · <span style="color:var(--gold)">đổi đuôi</span>':' · giữ tên');
+}
+let pvTrue={w:0,h:0};
 async function renderPreview(){
   const body=$('#pvBody');
   if(!state.previewId||!state.images.length){
     body.innerHTML='<div class="pv-empty">'+
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m21 15-5-5L5 21"/></svg>'+
-      '<p>Thêm ảnh rồi bấm vào một ảnh trong lưới để xem trước Trước / Sau.</p></div>';
-    return;
+      '<p>Bấm một ảnh trong lưới để căn mẫu. Kéo để di chuyển, lăn chuột hoặc chụm 2 ngón để phóng to.</p></div>';
+    pvDisp=null; return;
   }
   const img=state.images.find(i=>i.id===state.previewId); if(!img)return;
-  // ensure structure exists
   if(!body.querySelector('.cmp')){
     body.innerHTML=
       '<div class="cmp" id="cmp">'+
-        '<span class="tag l">GỐC</span><span class="tag r">SAU XỬ LÝ</span>'+
-        '<img class="before" id="pvBefore"><img class="after" id="pvAfter"><div class="handle"></div>'+
+        '<canvas class="after" id="pvAfterC"></canvas><img class="before hidden" id="pvBefore">'+
+        '<div class="cmp-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>Kéo để di chuyển · lăn/chụm để phóng</div>'+
+        '<button class="cmp-cmp" id="cmpToggle">Giữ để xem gốc</button>'+
       '</div>'+
       '<div class="pv-stats">'+
         '<div class="stat gold"><div><div class="sv" id="stSize">—</div><div class="sl">Dung lượng sau</div></div></div>'+
@@ -949,37 +1035,47 @@ async function renderPreview(){
     setupCmp();
   }
   $('#pvBefore').src=img.url;
-  // bitmap cache
   try{
     if(pvCache.id!==img.id){ pvCache.bmp&&pvCache.bmp.close&&pvCache.bmp.close(); pvCache.bmp=await createImageBitmap(img.file); pvCache.id=img.id; }
   }catch(e){ toast('Không xem trước được ảnh này',true); return; }
   const bmp=pvCache.bmp;
-  const trueDims=computeDims(bmp.width,bmp.height);
-  let disp={w:trueDims.w,h:trueDims.h}, exact=true;
-  const longest=Math.max(trueDims.w,trueDims.h);
-  if(longest>PREVIEW_MAX){ const k=PREVIEW_MAX/longest; disp={w:Math.round(trueDims.w*k),h:Math.round(trueDims.h*k)}; exact=false; }
-  const c=await renderCanvas(bmp,disp);
-  const {type,q}=outParams(img);
-  const blob=await canvasBlob(c,type,q);
-  if(pvAfterUrl)URL.revokeObjectURL(pvAfterUrl);
-  pvAfterUrl=URL.createObjectURL(blob);
-  const af=$('#pvAfter'); if(af)af.src=pvAfterUrl;
-  const cmp=$('#cmp'); if(cmp)cmp.style.aspectRatio=trueDims.w+' / '+trueDims.h;
-  // stats
-  const on=outName(img,type);
-  const stS=$('#stSize'); if(stS)stS.innerHTML=(exact?'':'≈ ')+fmtBytes(blob.size).replace(/ (\w+)$/,' <small>$1</small>');
-  const stD=$('#stDim'); if(stD)stD.textContent=trueDims.w+'×'+trueDims.h;
-  const fmtName=type==='image/png'?'PNG':type==='image/webp'?'WebP':'JPG';
-  const stF=$('#stFmt'); if(stF)stF.innerHTML=fmtName+(on.changed?' · <span style="color:var(--gold)">đổi đuôi</span>':' · giữ tên');
+  pvTrue=computeDims(bmp.width,bmp.height);
+  let disp={w:pvTrue.w,h:pvTrue.h}; pvExact=true;
+  const longest=Math.max(pvTrue.w,pvTrue.h);
+  if(longest>PREVIEW_MAX){ const k=PREVIEW_MAX/longest; disp={w:Math.round(pvTrue.w*k),h:Math.round(pvTrue.h*k)}; pvExact=false; }
+  pvDisp=disp;
+  const cv=pvCanvas(); cv.width=disp.w; cv.height=disp.h;
+  const cmp=$('#cmp'); if(cmp)cmp.style.aspectRatio=pvTrue.w+' / '+pvTrue.h;
+  paintOnly();
+  updateStats();
 }
 function setupCmp(){
-  const cmp=$('#cmp'); if(!cmp)return; let drag=false;
-  const move=x=>{ const r=cmp.getBoundingClientRect(); let p=(x-r.left)/r.width*100; p=Math.max(0,Math.min(100,p)); cmp.style.setProperty('--pos',p+'%'); };
-  cmp.addEventListener('pointerdown',e=>{ drag=true; cmp.setPointerCapture(e.pointerId); move(e.clientX); });
-  cmp.addEventListener('pointermove',e=>{ if(drag)move(e.clientX); });
-  cmp.addEventListener('pointerup',()=>drag=false);
-  cmp.addEventListener('pointercancel',()=>drag=false);
-  cmp.style.setProperty('--pos','55%');
+  const cmp=$('#cmp'); if(!cmp)return;
+  const pointers=new Map(); let dragging=false,lastX=0,lastY=0,pinchDist=0,pinchScale=100;
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  cmp.addEventListener('pointerdown',e=>{
+    if(e.target.closest('.cmp-cmp'))return;
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    try{cmp.setPointerCapture(e.pointerId);}catch(_){}
+    if(pointers.size===2){ const p=[...pointers.values()]; pinchDist=dist(p[0],p[1]); pinchScale=S.fg.scale; dragging=false; }
+    else if(pointers.size===1){ dragging=true; lastX=e.clientX; lastY=e.clientY; cmp.classList.add('grabbing'); }
+  });
+  cmp.addEventListener('pointermove',e=>{
+    if(!pointers.has(e.pointerId))return;
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.size===2){ const p=[...pointers.values()]; const d=dist(p[0],p[1]); if(pinchDist>0)setFgScale(pinchScale*d/pinchDist); return; }
+    if(dragging&&pointers.size===1){ const r=cmp.getBoundingClientRect(); const dx=(e.clientX-lastX)/r.width*100, dy=(e.clientY-lastY)/r.height*100; lastX=e.clientX; lastY=e.clientY; setFgOff(S.fg.offX+dx,S.fg.offY+dy); }
+  });
+  const endP=e=>{ pointers.delete(e.pointerId); if(pointers.size<2)pinchDist=0;
+    if(pointers.size===0){ dragging=false; cmp.classList.remove('grabbing'); }
+    else { const p=[...pointers.values()][0]; lastX=p.x; lastY=p.y; dragging=true; } };
+  ['pointerup','pointercancel'].forEach(ev=>cmp.addEventListener(ev,endP));
+  cmp.addEventListener('wheel',e=>{ e.preventDefault(); setFgScale(S.fg.scale+(e.deltaY<0?4:-4)); },{passive:false});
+  cmp.addEventListener('dblclick',()=>{ S.fg={scale:100,offX:0,offY:0,rotate:0}; fgUI.scale.set(100); fgUI.offX.set(0); fgUI.offY.set(0); fgUI.rot.set(0); livePreview(); });
+  const tgl=$('#cmpToggle');
+  const before=v=>{ $('#pvBefore').classList.toggle('hidden',!v); pvCanvas().classList.toggle('hidden',v); };
+  tgl.addEventListener('pointerdown',e=>{ e.stopPropagation(); before(true); });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>tgl.addEventListener(ev,e=>{ e.stopPropagation(); before(false); }));
 }
 
 /* ================= run all ================= */
@@ -1090,7 +1186,7 @@ function wire(){
   $('#btnPickFolder').onclick=()=>$('#folderInput').click();
   $('#fileInput').onchange=e=>{ const fs=Array.from(e.target.files||[]).map(f=>({file:f,relpath:f.name})); if(fs.length)addImages(fs); e.target.value=''; };
   $('#folderInput').onchange=e=>{ const fs=Array.from(e.target.files||[]).map(f=>({file:f,relpath:f.webkitRelativePath||f.name})); if(fs.length)addImages(fs); e.target.value=''; };
-  $('#frameInput').onchange=e=>{ const fs=Array.from(e.target.files||[]); if(fs.length)addFrames(fs); e.target.value=''; };
+  $('#frameInput').onchange=e=>{ const fs=Array.from(e.target.files||[]); if(fs.length)addAssets(fs,pendingRole); e.target.value=''; };
 
   $('#search').oninput=e=>{ state.filter=e.target.value; renderGrid(); };
   $('#btnSort').onclick=()=>{
@@ -1173,7 +1269,7 @@ if('serviceWorker' in navigator && !isFileProto){
 }
 
 /* ================= init ================= */
-buildPanel(); updateFrameUI(); renderGrid(); updateCounts(); wire(); initInstall();
+buildPanel(); updateFrameUI(); renderBgAssets(); renderGrid(); updateCounts(); wire(); initInstall();
 if(!('showDirectoryPicker' in window)){ /* folder-save unsupported: button will toast on click */ }
 })();
 </script>
