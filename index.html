@@ -229,6 +229,12 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
 .tile-x:hover{background:var(--danger);border-color:var(--danger)}
 .tile-x svg{width:13px;height:13px}
 .tile-badge{position:absolute;bottom:34px;right:6px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgba(11,18,32,.85);backdrop-filter:blur(4px)}
+.tile-an{position:absolute;bottom:34px;left:6px;height:22px;padding:0 8px;border-radius:7px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;line-height:22px;color:var(--txt);background:rgba(11,18,32,.85);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.14);cursor:pointer;z-index:3;transition:border-color .14s,color .14s}
+.tile-an:hover{border-color:var(--teal);color:var(--teal-lite)}
+.tile-an.multi{color:var(--gold);border-color:rgba(203,164,90,.5)}
+.tile-an.one{color:var(--teal-lite);border-color:var(--teal-deep)}
+.tile-an.off{color:var(--muted)}
+.tile-an.wait{color:var(--muted);letter-spacing:1px}
 .tile-badge svg{width:14px;height:14px}
 .tile-badge.idle{display:none}
 .tile-badge.done{background:var(--teal);color:#fff}
@@ -422,7 +428,35 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
       <!-- 2. ẢNH SẢN PHẨM -->
       <div class="card">
         <div class="sec">
-          <div class="sec-h"><div class="sec-n">2</div><h3>Ảnh sản phẩm</h3><span class="hint">kéo &amp; lăn chuột ở khung xem trước</span></div>
+          <div class="sec-h"><div class="sec-n">2</div><h3>Ảnh sản phẩm</h3><span class="hint" id="anHint">tự nhận diện</span></div>
+          <div class="field">
+            <div class="lbl">Căn cỡ theo</div>
+            <div class="seg" id="segFitMode"></div>
+          </div>
+          <div id="autoFitWrap">
+            <div class="field" id="fldTarget"></div>
+            <div class="field">
+              <div class="lbl">Căn dọc</div>
+              <div class="seg" id="segAlignY"></div>
+            </div>
+            <div class="field" id="fldBaseline"></div>
+            <div class="row2">
+              <div class="field" id="fldSafeTop"></div>
+              <div class="field" id="fldSafeSide"></div>
+            </div>
+            <div class="row2">
+              <div class="field">
+                <div class="lbl">Chống tràn</div>
+                <div class="seg" id="segGuard"></div>
+              </div>
+              <div class="field">
+                <div class="lbl">Hiện vùng nhận diện</div>
+                <div class="seg" id="segShowBox"></div>
+              </div>
+            </div>
+            <div class="divide"></div>
+          </div>
+          <div class="lbl" style="margin-bottom:8px">Tinh chỉnh thêm <span style="color:var(--muted);font-weight:500">· kéo &amp; lăn chuột ở khung xem trước</span></div>
           <div class="field" id="fldFgScale"></div>
           <div class="row2">
             <div class="field" id="fldFgX"></div>
@@ -611,12 +645,24 @@ const state={
 };
 const S={
   bg:{type:'white',color:'#ffffff',imageId:null,fit:'cover'},
+  fit:{mode:'main',target:60,alignY:'baseline',baseline:85,safeTop:17,safeSide:3,guard:'on',showBox:'on'},
   fg:{scale:100,offX:0,offY:0,rotate:0},
   frame:{id:null,z:'over',fit:'stretch',scale:100,offX:0,offY:0,rotate:0,opacity:100},
   canvas:{mode:'original',maxDim:0,ratioW:3,ratioH:4},
   output:{format:'auto',qmode:'original',quality:90}
 };
 const fgUI={};   // tham chiếu slider ảnh sản phẩm (đồng bộ khi kéo/phóng trên preview)
+const fitUI={};
+function updateAnHint(){
+  const h=$('#anHint'); if(!h)return;
+  if(S.fit.mode==='full'){ h.textContent='dùng toàn ảnh'; return; }
+  const n=state.images.length;
+  if(!n){ h.textContent='tự nhận diện'; return; }
+  const done=state.images.filter(i=>i.an).length;
+  if(done<n){ h.textContent='đang nhận diện '+done+'/'+n; return; }
+  const multi=state.images.filter(i=>i.an&&i.an.count>1).length;
+  h.textContent=multi?(multi+'/'+n+' ảnh nhiều sản phẩm'):'đã nhận diện '+n+' ảnh';
+}
 
 /* ================= helpers ================= */
 function fmtBytes(n){ if(n<1024)return n+' B'; if(n<1048576)return (n/1024).toFixed(n<10240?1:0)+' KB'; if(n<1073741824)return (n/1048576).toFixed(n<10485760?1:1)+' MB'; return (n/1073741824).toFixed(2)+' GB'; }
@@ -692,6 +738,20 @@ function buildPanel(){
   Seg($('#fldBgFit'),[{v:'cover',label:'Phủ'},{v:'contain',label:'Vừa'},{v:'stretch',label:'Kéo đầy'}],()=>S.bg.fit,v=>{S.bg.fit=v;schedule();});
 
   /* --- 2. Ảnh sản phẩm --- */
+  Seg($('#segFitMode'),[{v:'main',label:'Sản phẩm chính'},{v:'content',label:'Vùng có hình'},{v:'full',label:'Toàn ảnh'}],()=>S.fit.mode,v=>{
+    S.fit.mode=v; $('#autoFitWrap').style.display=v==='full'?'none':'';
+    if(v!=='full')queueAnalyze(state.images);
+    renderGrid(); updateAnHint(); schedule();
+  });
+  fitUI.target=Slider($('#fldTarget'),'Cỡ chuẩn (cạnh dài sản phẩm)',30,90,1,()=>S.fit.target,v=>{S.fit.target=v;schedule();},v=>v+'%');
+  Seg($('#segAlignY'),[{v:'baseline',label:'Đáy chuẩn'},{v:'center',label:'Giữa khung'}],()=>S.fit.alignY,v=>{
+    S.fit.alignY=v; $('#fldBaseline').style.display=v==='baseline'?'':'none'; schedule();
+  });
+  Slider($('#fldBaseline'),'Đáy sản phẩm',60,98,1,()=>S.fit.baseline,v=>{S.fit.baseline=v;schedule();},v=>v+'%');
+  Slider($('#fldSafeTop'),'Chừa trên',0,40,1,()=>S.fit.safeTop,v=>{S.fit.safeTop=v;schedule();},v=>v+'%');
+  Slider($('#fldSafeSide'),'Chừa mép',0,15,1,()=>S.fit.safeSide,v=>{S.fit.safeSide=v;schedule();},v=>v+'%');
+  Seg($('#segGuard'),[{v:'on',label:'Bật'},{v:'off',label:'Tắt'}],()=>S.fit.guard,v=>{S.fit.guard=v;schedule();});
+  Seg($('#segShowBox'),[{v:'on',label:'Bật'},{v:'off',label:'Tắt'}],()=>S.fit.showBox,v=>{S.fit.showBox=v;livePreview();});
   fgUI.scale=Slider($('#fldFgScale'),'Cỡ ảnh',10,300,1,()=>S.fg.scale,v=>{S.fg.scale=v;schedule();},v=>v+'%');
   fgUI.offX =Slider($('#fldFgX'),'Lệch ngang',-100,100,1,()=>S.fg.offX,v=>{S.fg.offX=v;schedule();},v=>v+'%');
   fgUI.offY =Slider($('#fldFgY'),'Lệch dọc',-100,100,1,()=>S.fg.offY,v=>{S.fg.offY=v;schedule();},v=>v+'%');
@@ -836,7 +896,8 @@ function addImages(items){   // items: [{file,relpath}]
     state.images.push(img); state.sel.add(img.id); added++;
   }
   if(!state.previewId&&state.images.length)state.previewId=sortedImages()[0].id;
-  renderGrid(); updateCounts(); updateExtWarn();
+  renderGrid(); updateCounts(); updateExtWarn(); updateAnHint();
+  if(S.fit.mode!=='full')queueAnalyze(state.images);
   if(added)renderPreview();
   let msg='Đã thêm '+added+' ảnh'; if(dup)msg+=' · bỏ '+dup+' trùng'; if(skip)msg+=' · bỏ '+skip+' không phải ảnh';
   toast(msg);
@@ -872,18 +933,46 @@ function renderGrid(){
       '<div class="tile-img"><img loading="lazy" decoding="async" src="'+img.url+'"></div>'+
       '<div class="tile-check">'+IC.check+'</div>'+
       '<button class="tile-x">'+IC.x+'</button>'+
+      anBadge(img)+
       badge(img.status)+
       '<div class="tile-name">'+img.name+'</div>';
     t.querySelector('.tile-img').onclick=()=>{ state.previewId=img.id; renderGrid(); renderPreview(); if(window.innerWidth<=1120)setTab('pv'); };
+    const ab=t.querySelector('.tile-an'); if(ab)ab.onclick=e=>{ e.stopPropagation(); cycleOvr(img); };
     t.querySelector('.tile-check').onclick=e=>{ e.stopPropagation(); if(state.sel.has(img.id))state.sel.delete(img.id); else state.sel.add(img.id); t.classList.toggle('on'); updateCounts(); };
     t.querySelector('.tile-x').onclick=e=>{ e.stopPropagation(); removeImage(img.id); };
     frag.appendChild(t);
   });
   grid.appendChild(frag);
 }
+function anBadge(img){
+  if(S.fit.mode==='full')return '';
+  const ov=img.ovr||'auto';
+  if(ov==='full')return '<button class="tile-an off" title="Ảnh này: dùng toàn ảnh">toàn ảnh</button>';
+  if(ov==='one')return '<button class="tile-an one" title="Ảnh này: ép coi là 1 sản phẩm">×1 ép</button>';
+  if(!img.an)return '<button class="tile-an wait" title="Đang nhận diện">…</button>';
+  const n=img.an.count||0;
+  if(!n)return '<button class="tile-an off" title="Không dò được vùng sản phẩm">?</button>';
+  return '<button class="tile-an'+(n>1?' multi':'')+'" title="Dò được '+n+' sản phẩm — bấm để ép tay">×'+n+'</button>';
+}
+function cycleOvr(img){
+  const ov=img.ovr||'auto';
+  img.ovr = ov==='auto'?'one' : ov==='one'?'full' : 'auto';
+  updateItemDom(img);
+  toast(img.ovr==='one'?'Ảnh này: ép coi là 1 sản phẩm':img.ovr==='full'?'Ảnh này: dùng toàn ảnh':'Ảnh này: tự động');
+  if(state.previewId===img.id)schedulePreview();
+}
 function updateItemDom(img){
   const t=$('#grid').querySelector('[data-id="'+img.id+'"]'); if(!t)return;
   const old=t.querySelector('.tile-badge'); if(old){ const tmp=document.createElement('div'); tmp.innerHTML=badge(img.status); old.replaceWith(tmp.firstChild); }
+  const oa=t.querySelector('.tile-an'), html=anBadge(img);
+  if(oa){
+    if(!html)oa.remove();
+    else { const tmp=document.createElement('div'); tmp.innerHTML=html; const nb=tmp.firstChild; nb.onclick=e=>{ e.stopPropagation(); cycleOvr(img); }; oa.replaceWith(nb); }
+  }else if(html){
+    const tmp=document.createElement('div'); tmp.innerHTML=html; const nb=tmp.firstChild;
+    nb.onclick=e=>{ e.stopPropagation(); cycleOvr(img); }; t.appendChild(nb);
+  }
+  updateAnHint();
 }
 function removeImage(id){
   const img=state.images.find(i=>i.id===id); if(img)URL.revokeObjectURL(img.url);
@@ -938,13 +1027,158 @@ function fillBg(ctx,cw,ch,bmp){
   }
   else if(t==='image'){ const a=asset(S.bg.imageId); if(a&&a.bmp)drawAssetFill(ctx,a.bmp,cw,ch,S.bg.fit); }
 }
-function drawFg(ctx,bmp,cw,ch){
-  const base=containRect(bmp.width,bmp.height,cw,ch);   // cỡ 100% = vừa khít khung theo tỉ lệ ảnh
-  const sc=S.fg.scale/100, w=base.w*sc, h=base.h*sc;
-  const cx=cw/2+S.fg.offX/100*cw, cy=ch/2+S.fg.offY/100*ch;
-  ctx.save(); ctx.translate(cx,cy); if(S.fg.rotate)ctx.rotate(S.fg.rotate*Math.PI/180);
+/* ================= nhận diện sản phẩm trong ảnh ================= */
+const AN_SIZE=256, AN_ALPHA=40, AN_BGTOL=26, AN_NOISE=0.015, AN_DILATE=2;
+function anCanvas(w,h){ try{ return new OffscreenCanvas(w,h); }catch(e){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; } }
+/* trả về {content:[x0,y0,x1,y1] 0..1, main:[...], count, mode:'alpha'|'bg'} — null nếu không dò được */
+function analyzeBitmap(bmp){
+  const long=Math.max(bmp.width,bmp.height), k=Math.min(1,AN_SIZE/long);
+  const w=Math.max(8,Math.round(bmp.width*k)), h=Math.max(8,Math.round(bmp.height*k));
+  const c=anCanvas(w,h), ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.clearRect(0,0,w,h); ctx.drawImage(bmp,0,0,w,h);
+  let d; try{ d=ctx.getImageData(0,0,w,h).data; }catch(e){ return null; }
+  const n=w*h, mask=new Uint8Array(n);
+  // có alpha thật không?
+  let transparent=false;
+  for(let i=3;i<d.length;i+=4){ if(d[i]<250){ transparent=true; break; } }
+  let mode;
+  if(transparent){
+    mode='alpha';
+    for(let p=0,i=3;p<n;p++,i+=4)mask[p]=d[i]>=AN_ALPHA?1:0;
+  }else{
+    mode='bg';
+    // màu nền = trung vị 4 góc
+    const cor=[[0,0],[w-1,0],[0,h-1],[w-1,h-1]].map(([x,y])=>{ const i=(y*w+x)*4; return [d[i],d[i+1],d[i+2]]; });
+    const med=ch=>{ const a=cor.map(v=>v[ch]).sort((x,y)=>x-y); return (a[1]+a[2])/2; };
+    const br=med(0),bg2=med(1),bb=med(2);
+    for(let p=0,i=0;p<n;p++,i+=4){
+      const dif=Math.max(Math.abs(d[i]-br),Math.abs(d[i+1]-bg2),Math.abs(d[i+2]-bb));
+      mask[p]=dif>AN_BGTOL?1:0;
+    }
+  }
+  // giãn nhẹ để nối các mảnh bị đứt (quai, lưới) — tách rời 2 trục cho nhanh
+  const R=AN_DILATE, t1=new Uint8Array(n), dil=new Uint8Array(n);
+  for(let y=0;y<h;y++){ const row=y*w;
+    for(let x=0;x<w;x++){ let v=0; const a=Math.max(0,x-R),b=Math.min(w-1,x+R);
+      for(let i=a;i<=b;i++)if(mask[row+i]){v=1;break;} t1[row+x]=v; } }
+  for(let x=0;x<w;x++){
+    for(let y=0;y<h;y++){ let v=0; const a=Math.max(0,y-R),b=Math.min(h-1,y+R);
+      for(let i=a;i<=b;i++)if(t1[i*w+x]){v=1;break;} dil[y*w+x]=v; } }
+  // tách cụm 8 hướng trên mặt nạ đã giãn; hộp bao tính trên mặt nạ gốc
+  const lab=new Int32Array(n).fill(-1), stack=new Int32Array(n);
+  const boxes=[]; let cur=0;
+  for(let p0=0;p0<n;p0++){
+    if(!dil[p0]||lab[p0]>=0)continue;
+    let sp=0; stack[sp++]=p0; lab[p0]=cur;
+    let x0=1e9,y0=1e9,x1=-1,y1=-1,area=0;
+    while(sp>0){
+      const p=stack[--sp], py=(p/w)|0, px=p-py*w;
+      if(mask[p]){ area++; if(px<x0)x0=px; if(px>x1)x1=px; if(py<y0)y0=py; if(py>y1)y1=py; }
+      for(let dy=-1;dy<=1;dy++){ const ny=py+dy; if(ny<0||ny>=h)continue;
+        for(let dx=-1;dx<=1;dx++){ const nx=px+dx; if(nx<0||nx>=w)continue;
+          const q=ny*w+nx; if(dil[q]&&lab[q]<0){ lab[q]=cur; stack[sp++]=q; } } }
+    }
+    if(area>0)boxes.push({x0,y0,x1,y1,area});
+    cur++;
+  }
+  if(!boxes.length)return null;
+  boxes.sort((a,b)=>b.area-a.area);
+  const big=boxes[0].area, keep=boxes.filter(b=>b.area>=big*AN_NOISE);
+  const m=keep[0];
+  let cx0=1e9,cy0=1e9,cx1=-1,cy1=-1;
+  keep.forEach(b=>{ if(b.x0<cx0)cx0=b.x0; if(b.y0<cy0)cy0=b.y0; if(b.x1>cx1)cx1=b.x1; if(b.y1>cy1)cy1=b.y1; });
+  const nx=v=>v/w, ny=v=>v/h;
+  const main=[nx(m.x0),ny(m.y0),nx(m.x1+1),ny(m.y1+1)];
+  const content=[nx(cx0),ny(cy0),nx(cx1+1),ny(cy1+1)];
+  // ảnh chụp tràn viền (không có nền để tách) -> không chuẩn hoá, giữ nguyên như cũ
+  if(mode==='bg'&&keep.length===1&&(content[2]-content[0])>0.97&&(content[3]-content[1])>0.97)
+    return {mode:'full-bleed',count:0,main:[0,0,1,1],content:[0,0,1,1]};
+  return {mode,count:keep.length,main,content};
+}
+/* hàng đợi phân tích chạy ngầm, cache theo ảnh */
+let anQueue=[], anBusy=0;
+function queueAnalyze(imgs){ imgs.forEach(i=>{ if(!i.an&&!i.anQ){ i.anQ=true; anQueue.push(i); } }); pumpAnalyze(); }
+function pumpAnalyze(){
+  while(anBusy<Math.min(4,CONC)&&anQueue.length){
+    const img=anQueue.shift(); anBusy++;
+    analyzeImage(img).finally(()=>{ anBusy--; pumpAnalyze(); });
+  }
+}
+async function analyzeImage(img){
+  if(img.an)return img.an;
+  let bmp=null;
+  try{
+    try{ bmp=await createImageBitmap(img.file,{resizeWidth:AN_SIZE,resizeQuality:'medium'}); }
+    catch(e){ bmp=await createImageBitmap(img.file); }
+    img.an=analyzeBitmap(bmp)||{count:0,main:[0,0,1,1],content:[0,0,1,1],mode:'none'};
+  }catch(e){ img.an={count:0,main:[0,0,1,1],content:[0,0,1,1],mode:'none'}; }
+  finally{ bmp&&bmp.close&&bmp.close(); img.anQ=false; }
+  updateItemDom(img);
+  if(state.previewId===img.id)schedulePreview();
+  return img.an;
+}
+/* hộp tham chiếu sau khi áp ép tay của từng ảnh */
+function refBoxes(img){
+  const an=img&&img.an;
+  if(!an||!an.count)return {main:[0,0,1,1],content:[0,0,1,1],count:0};
+  const ov=img.ovr||'auto';
+  if(ov==='full')return {main:[0,0,1,1],content:[0,0,1,1],count:an.count};
+  if(ov==='one')return {main:an.content,content:an.content,count:1};
+  return {main:an.main,content:an.content,count:an.count};
+}
+function fgLayout(bmp,cw,ch,img){
+  const F=S.fit, W0=bmp.width, H0=bmp.height;
+  const boxes=refBoxes(img);
+  const usable=(F.mode!=='full')&&boxes.count>0;
+  const ref=usable?(F.mode==='main'?boxes.main:boxes.content):[0,0,1,1];
+  const con=usable?boxes.content:[0,0,1,1];
+  const rw=(ref[2]-ref[0])*W0, rh=(ref[3]-ref[1])*H0;
+  const cx0=con[0]*W0, cy0=con[1]*H0, cx1=con[2]*W0, cy1=con[3]*H0;
+  let k;
+  if(!usable){ const b=containRect(W0,H0,cw,ch); k=b.w/W0; }
+  else { const REF=Math.min(cw,ch); k=(F.target/100*REF)/Math.max(1,Math.max(rw,rh)); }
+  k*=S.fg.scale/100;
+  if(usable&&F.guard==='on'){
+    const sx=F.safeSide/100*cw, sTop=F.safeTop/100*ch;
+    const sw=cw-2*sx, sh=ch-sTop-sx;
+    const bw=(cx1-cx0)*k, bh=(cy1-cy0)*k;
+    let g=1;
+    if(bw>sw)g=Math.min(g,sw/bw);
+    if(bh>sh)g=Math.min(g,sh/bh);
+    if(g<1)k*=g;
+  }
+  const W=W0*k, H=H0*k;
+  const ccx=(cx0+cx1)/2*k, ccy=(cy0+cy1)/2*k;
+  const bh2=(cy1-cy0)*k;
+  const px=cw/2+S.fg.offX/100*cw;
+  let py;
+  if(usable&&F.alignY==='baseline'){ py=F.baseline/100*ch-bh2/2+S.fg.offY/100*ch; }
+  else { py=ch/2+S.fg.offY/100*ch; }
+  return {k,W,H,ccx,ccy,px,py,usable,ref,con,count:boxes.count};
+}
+function drawFg(ctx,bmp,cw,ch,img){
+  const L=fgLayout(bmp,cw,ch,img);
+  ctx.save(); ctx.translate(L.px,L.py); if(S.fg.rotate)ctx.rotate(S.fg.rotate*Math.PI/180);
   ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-  ctx.drawImage(bmp,-w/2,-h/2,w,h); ctx.restore();
+  ctx.drawImage(bmp,-L.ccx,-L.ccy,L.W,L.H); ctx.restore();
+  return L;
+}
+function drawDetectBox(ctx,L,bmp,cw,ch){
+  if(!L||!L.usable)return;
+  const W0=bmp.width,H0=bmp.height,k=L.k;
+  const box=(b,color,dash)=>{
+    const x=b[0]*W0*k-L.ccx, y=b[1]*H0*k-L.ccy, w=(b[2]-b[0])*W0*k, h=(b[3]-b[1])*H0*k;
+    ctx.save(); ctx.translate(L.px,L.py); if(S.fg.rotate)ctx.rotate(S.fg.rotate*Math.PI/180);
+    ctx.setLineDash(dash); ctx.lineWidth=Math.max(1.5,Math.min(cw,ch)/380);
+    ctx.strokeStyle=color; ctx.strokeRect(x,y,w,h); ctx.restore();
+  };
+  const u=Math.max(4,Math.min(cw,ch)/90);
+  if(L.count>1)box(L.con,'rgba(203,164,90,.85)',[u*0.7,u*0.7]);
+  box(L.ref,'rgba(95,208,194,.95)',[u,u*0.6]);
+  const F=S.fit, sx=F.safeSide/100*cw, sTop=F.safeTop/100*ch;
+  ctx.save(); ctx.setLineDash([u*0.35,u*0.9]); ctx.lineWidth=Math.max(1,Math.min(cw,ch)/500);
+  ctx.strokeStyle='rgba(231,237,245,.35)';
+  ctx.strokeRect(sx,sTop,cw-2*sx,ch-sTop-sx); ctx.restore();
 }
 function drawFrame(ctx,fb,cw,ch){
   const f=S.frame, fr=fb.width/fb.height, cr=cw/ch; let bw,bh;
@@ -973,24 +1207,27 @@ function outName(img,type){
   const ext=compat?srcExt:typeExt;
   return {name:dir+stem+'.'+ext,changed:ext!==srcExt};
 }
-function paint(ctx,cw,ch,bmp){
+function paint(ctx,cw,ch,bmp,img,showBox){
   fillBg(ctx,cw,ch,bmp);
   const fr=(S.frame.id!==null)?asset(S.frame.id):null;
   if(fr&&fr.bmp&&S.frame.z==='under')drawFrame(ctx,fr.bmp,cw,ch);
-  drawFg(ctx,bmp,cw,ch);
+  const L=drawFg(ctx,bmp,cw,ch,img);
   if(fr&&fr.bmp&&S.frame.z==='over')drawFrame(ctx,fr.bmp,cw,ch);
+  if(showBox&&S.fit.showBox==='on')drawDetectBox(ctx,L,bmp,cw,ch);
+  return L;
 }
-async function renderCanvas(bmp,dims){
+async function renderCanvas(bmp,dims,img){
   const c=makeCanvas(dims.w,dims.h);
-  paint(c.getContext('2d'),dims.w,dims.h,bmp);
+  paint(c.getContext('2d'),dims.w,dims.h,bmp,img,false);
   return c;
 }
 async function processImage(img){
   let bmp;
   try{ bmp=await createImageBitmap(img.file); }
   catch(e){ throw new Error('không giải mã được ('+img.ext+')'); }
+  if(!img.an&&S.fit.mode!=='full'){ try{ img.an=analyzeBitmap(bmp)||{count:0,main:[0,0,1,1],content:[0,0,1,1],mode:'none'}; }catch(e){} }
   const dims=computeDims(bmp.width,bmp.height);
-  const c=await renderCanvas(bmp,dims);
+  const c=await renderCanvas(bmp,dims,img);
   const {type,q}=outParams(img);
   const blob=await canvasBlob(c,type,q);
   bmp.close&&bmp.close();
@@ -1005,11 +1242,11 @@ function livePreview(){ if(!pvPaintReq){ pvPaintReq=true; requestAnimationFrame(
 function setFgOff(x,y){ S.fg.offX=clampN(Math.round(x),-120,120); S.fg.offY=clampN(Math.round(y),-120,120); fgUI.offX&&fgUI.offX.set(S.fg.offX); fgUI.offY&&fgUI.offY.set(S.fg.offY); livePreview(); }
 function setFgScale(s){ S.fg.scale=clampN(Math.round(s),10,300); fgUI.scale&&fgUI.scale.set(S.fg.scale); livePreview(); }
 function pvCanvas(){ return document.getElementById('pvAfterC'); }
-function paintOnly(){ const cv=pvCanvas(); if(!cv||!pvCache.bmp||!pvDisp)return; paint(cv.getContext('2d'),pvDisp.w,pvDisp.h,pvCache.bmp); }
+function paintOnly(){ const cv=pvCanvas(); if(!cv||!pvCache.bmp||!pvDisp)return; const img=state.images.find(i=>i.id===state.previewId); paint(cv.getContext('2d'),pvDisp.w,pvDisp.h,pvCache.bmp,img,true); }
 async function updateStats(){
-  const cv=pvCanvas(), img=state.images.find(i=>i.id===state.previewId); if(!cv||!img)return;
+  const img=state.images.find(i=>i.id===state.previewId); if(!img||!pvCache.bmp||!pvDisp)return;
   const {type,q}=outParams(img);
-  let blob; try{ blob=await canvasBlob(cv,type,q); }catch(e){ return; }
+  let blob; try{ const c=await renderCanvas(pvCache.bmp,pvDisp,img); blob=await canvasBlob(c,type,q); }catch(e){ return; }
   const on=outName(img,type);
   const stS=$('#stSize'); if(stS)stS.innerHTML=(pvExact?'':'≈ ')+fmtBytes(blob.size).replace(/ (\w+)$/,' <small>$1</small>');
   const stD=$('#stDim'); if(stD)stD.textContent=(pvDisp?pvTrue.w:'—')+'×'+(pvDisp?pvTrue.h:'—');
@@ -1045,6 +1282,7 @@ async function renderPreview(){
     if(pvCache.id!==img.id){ pvCache.bmp&&pvCache.bmp.close&&pvCache.bmp.close(); pvCache.bmp=await createImageBitmap(img.file); pvCache.id=img.id; }
   }catch(e){ toast('Không xem trước được ảnh này',true); return; }
   const bmp=pvCache.bmp;
+  if(!img.an){ try{ img.an=analyzeBitmap(bmp)||{count:0,main:[0,0,1,1],content:[0,0,1,1],mode:'none'}; updateItemDom(img); }catch(e){} }
   pvTrue=computeDims(bmp.width,bmp.height);
   let disp={w:pvTrue.w,h:pvTrue.h}; pvExact=true;
   const longest=Math.max(pvTrue.w,pvTrue.h);
