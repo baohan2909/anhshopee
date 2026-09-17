@@ -11,14 +11,15 @@
 <title>NS · XỬ LÝ ẢNH</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0B1220; --panel:#111A2E; --card:#16213A; --card-2:#182642;
   --line:rgba(255,255,255,.075); --line-2:rgba(255,255,255,.14);
   --teal:#3FB6A8; --teal-lite:#5FD0C2; --teal-deep:#1E5F63; --navy:#14213A;
   --gold:#CBA45A; --danger:#E5484D;
-  --grad:linear-gradient(135deg,#14213A 0%,#3FB6A8 100%);
+  --grad:linear-gradient(135deg,#14213A 0%,#1B4A50 52%,#2E8E83 100%);
+  --grad-soft:linear-gradient(135deg,#111C31 0%,#173B45 60%,#256E67 100%);
   --txt:#E7EDF5; --muted:#8FA0B8; --muted-2:#6B7B95;
   --r:12px; --r-sm:9px;
 }
@@ -35,7 +36,7 @@ body{
   overflow:hidden;
 }
 .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
-h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0;font-weight:600}
+h1,h2,h3{font-family:'Be Vietnam Pro',sans-serif;margin:0;font-weight:700;letter-spacing:-.01em}
 
 /* ---- reset nút (chặn viền 3D + outline đen) ---- */
 button{-webkit-appearance:none;-moz-appearance:none;appearance:none;border:none;background:none;color:inherit;font:inherit;cursor:pointer;padding:0}
@@ -59,11 +60,10 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .cmdbar{
   flex:none;height:66px;display:flex;align-items:center;gap:16px;padding:0 20px;
   background:
-    radial-gradient(circle at 12% 40%, rgba(255,255,255,.10) 0 3px, transparent 4px),
-    radial-gradient(circle at 22% 150%, rgba(203,164,90,.16) 0 120px, transparent 121px),
-    radial-gradient(circle at 92% -60%, rgba(255,255,255,.09) 0 150px, transparent 151px),
-    var(--grad);
-  border-bottom:1px solid rgba(255,255,255,.10);
+    radial-gradient(circle at 12% 40%, rgba(255,255,255,.07) 0 3px, transparent 4px),
+    radial-gradient(140% 220% at 118% 60%, rgba(46,142,131,.55) 0%, rgba(27,74,80,.35) 34%, transparent 62%),
+    linear-gradient(100deg,#0E1729 0%,#12203A 55%,#16324A 100%);
+  border-bottom:1px solid rgba(255,255,255,.08);
   box-shadow:0 8px 30px rgba(6,12,24,.5);
   position:relative;z-index:40;
 }
@@ -105,7 +105,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .card{background:linear-gradient(180deg,var(--card),var(--card));border:1px solid var(--line);border-radius:var(--r);box-shadow:0 10px 30px rgba(6,12,24,.28)}
 .sec{padding:16px}
 .sec-h{display:flex;align-items:center;gap:11px;margin-bottom:15px}
-.sec-n{width:25px;height:25px;border-radius:8px;flex:none;background:var(--grad);color:#fff;display:grid;place-items:center;font-family:'Space Grotesk';font-weight:700;font-size:13px;box-shadow:0 0 12px rgba(63,182,168,.34)}
+.sec-n{width:25px;height:25px;border-radius:8px;flex:none;background:var(--grad);color:#fff;display:grid;place-items:center;font-family:'Be Vietnam Pro';font-weight:700;font-size:13px;box-shadow:0 0 10px rgba(46,142,131,.30)}
 .sec-h h3{font-size:14.5px;letter-spacing:.01em}
 .sec-h .hint{font-size:11px;color:var(--muted-2);margin-left:auto}
 .divide{height:1px;background:var(--line);margin:14px 0}
@@ -118,6 +118,13 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .seg-b{flex:1;height:30px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--muted);transition:color .14s,background .14s;white-space:nowrap;padding:0 8px}
 .seg-b:hover{color:var(--txt)}
 .seg-b.on{background:var(--teal-deep);color:#fff}   /* nút nhỏ: nền đặc, KHÔNG gradient/shadow */
+.ratio-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+.ratio-chips .rc{height:28px;padding:0 11px;border-radius:8px;font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--muted);background:var(--card-2);border:1px solid var(--line-2);transition:color .14s,border-color .14s,background .14s}
+.ratio-chips .rc:hover{color:var(--txt);border-color:var(--teal)}
+.ratio-chips .rc.on{background:var(--teal-deep);color:#fff;border-color:var(--teal-deep)}
+.ratio-in{display:flex;align-items:center;gap:10px}
+.ratio-in .num{text-align:center}
+.ratio-x{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--muted);font-size:16px}
 
 /* ---- Sel (dropdown) ---- */
 .sel{position:relative}
@@ -149,10 +156,10 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
   display:inline-flex;align-items:center;justify-content:center;gap:9px;
   height:44px;padding:0 18px;border-radius:11px;width:100%;
   background:var(--grad);color:#fff;font-weight:700;font-size:14px;letter-spacing:.01em;
-  box-shadow:0 0 15px rgba(63,182,168,.40);          /* GLOW sáng lan đều, KHÔNG bóng tối */
+  box-shadow:0 0 13px rgba(46,142,131,.32);          /* GLOW sáng lan đều, KHÔNG bóng tối */
   transition:transform .13s,box-shadow .18s,filter .18s;
 }
-.btn-ai:hover{transform:translateY(-1px);box-shadow:0 0 22px rgba(63,182,168,.55);filter:brightness(1.06)}
+.btn-ai:hover{transform:translateY(-1px);box-shadow:0 0 18px rgba(46,142,131,.44);filter:brightness(1.05)}
 .btn-ai:active{transform:translateY(0)}
 .btn-ai:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;transform:none;filter:none}
 .btn-ai svg{width:19px;height:19px}
@@ -231,7 +238,7 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
 .empty .ebtns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .ebtn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:10px;font-size:13px;font-weight:600;border:1px solid var(--line-2);color:var(--txt);background:var(--card-2);transition:border-color .14s,transform .12s,color .14s}
 .ebtn:hover{border-color:var(--teal);color:var(--teal-lite);transform:translateY(-1px)}
-.ebtn.pri{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 0 14px rgba(63,182,168,.36)}
+.ebtn.pri{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 0 12px rgba(46,142,131,.30)}
 .ebtn.pri:hover{box-shadow:0 0 20px rgba(63,182,168,.5);color:#fff}
 .ebtn svg{width:16px;height:16px}
 .empty .paste{font-size:11.5px;color:var(--muted-2)}
@@ -270,7 +277,7 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
 .kt-so b{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;color:var(--teal-lite)}
 .kt-so span{font-size:12px;color:var(--muted)}
 .kt-bar{position:relative;height:15px;background:rgba(255,255,255,.07);border-radius:11px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.35)}
-.kt-fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--grad);border-radius:11px;box-shadow:0 0 12px rgba(63,182,168,.45);transition:width .5s cubic-bezier(.4,0,.2,1);overflow:hidden}
+.kt-fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--grad);border-radius:11px;box-shadow:0 0 10px rgba(46,142,131,.34);transition:width .5s cubic-bezier(.4,0,.2,1);overflow:hidden}
 .kt-song{position:absolute;top:0;bottom:0;width:60px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);animation:ktSong 2.4s linear infinite}
 @keyframes ktSong{0%{left:-60px}100%{left:100%}}
 .kt-pct{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace;text-shadow:0 1px 2px rgba(0,0,0,.4)}
@@ -346,7 +353,7 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
       <div class="card">
         <div class="sec">
           <div class="sec-h"><div class="sec-n">1</div><h3>Khung viền</h3><span class="hint" id="frmHint">chưa chọn</span></div>
-          <div class="lbl">Thư viện khung (PNG của anh)</div>
+          <div class="lbl">Thư viện khung</div>
           <div class="frames" id="frames"></div>
           <div class="frm-ctl" id="frmCtl">
             <div class="divide"></div>
@@ -375,6 +382,15 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
           <div class="field">
             <div class="lbl">Khung hình</div>
             <div class="seg" id="segMode"></div>
+          </div>
+          <div class="field" id="fldRatio" style="display:none">
+            <div class="lbl">Tỉ lệ (rộng : cao)</div>
+            <div class="ratio-chips" id="ratioChips"></div>
+            <div class="ratio-in">
+              <input class="num" id="ratioW" type="number" min="1" max="100" value="3">
+              <span class="ratio-x">:</span>
+              <input class="num" id="ratioH" type="number" min="1" max="100" value="4">
+            </div>
           </div>
           <div class="row2">
             <div class="field"><div class="lbl">Cạnh dài tối đa</div><div id="selMax"></div></div>
@@ -426,7 +442,7 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
             </button>
           </div>
           <div class="exp-btns" id="expBtns">
-            <button class="btn-ai" id="btnZip" style="background:linear-gradient(135deg,#1E5F63,#3FB6A8)">
+            <button class="btn-ai" id="btnZip" style="background:linear-gradient(135deg,#173B45,#2E8E83)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
               Tải ZIP toàn bộ
             </button>
@@ -458,8 +474,8 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
       <!-- empty state -->
       <div class="empty" id="empty">
         <div class="eic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v13"/></svg></div>
-        <h2>Kéo ảnh vào đây để bắt đầu</h2>
-        <p>Đưa hàng loạt ảnh gốc vào — hệ thống tự gắn khung, xử lý và giữ nguyên tên file. Nhận cả thư mục và thư mục lồng nhau.</p>
+        <h2>Kéo ảnh vào đây</h2>
+        <p>Nhận nhiều ảnh cùng lúc, cả thư mục và thư mục lồng nhau.</p>
         <div class="ebtns">
           <button class="ebtn pri" id="btnPickFiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v13"/></svg>Chọn ảnh</button>
           <button class="ebtn" id="btnPickFolder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>Chọn thư mục</button>
@@ -528,7 +544,7 @@ const state={
 };
 const S={
   frame:{id:null,fit:'stretch',scale:100,offX:0,offY:0,rotate:0,opacity:100,inset:0},
-  canvas:{mode:'original',maxDim:0,fill:'white',fillColor:'#ffffff'},
+  canvas:{mode:'original',maxDim:0,fill:'white',fillColor:'#ffffff',ratioW:3,ratioH:4},
   output:{format:'auto',qmode:'original',quality:90}
 };
 
@@ -589,7 +605,12 @@ function buildPanel(){
   Slider($('#fldOpa'),'Độ mờ khung',0,100,1,()=>S.frame.opacity,v=>{S.frame.opacity=v;schedule();},v=>v+'%');
   Slider($('#fldInset'),'Lề ảnh (đẩy ảnh vào trong khung)',0,25,1,()=>S.frame.inset,v=>{S.frame.inset=v;schedule();},v=>v+'%');
 
-  Seg($('#segMode'),[{v:'original',label:'Giữ nguyên'},{v:'square',label:'Vuông 1:1'}],()=>S.canvas.mode,v=>{S.canvas.mode=v;schedule();});
+  Seg($('#segMode'),[{v:'original',label:'Giữ nguyên'},{v:'square',label:'Vuông 1:1'},{v:'ratio',label:'Tùy chỉnh'}],()=>S.canvas.mode,v=>{
+    S.canvas.mode=v; $('#fldRatio').style.display=v==='ratio'?'':'none'; schedule();
+  });
+  buildRatioChips();
+  const syncRatio=()=>{ S.canvas.ratioW=Math.max(1,+$('#ratioW').value||1); S.canvas.ratioH=Math.max(1,+$('#ratioH').value||1); markRatioChip(); schedule(); };
+  $('#ratioW').oninput=syncRatio; $('#ratioH').oninput=syncRatio;
   Sel($('#selMax'),[{v:0,label:'Không đổi'},{v:1000,label:'1000 px'},{v:1200,label:'1200 px'},{v:2000,label:'2000 px'},{v:-1,label:'Tùy chỉnh'}],()=>S.canvas.maxDim,v=>{
     if(v===-1){ $('#fldCustomDim').style.display=''; S.canvas.maxDim=+$('#customDim').value||1200; }
     else { $('#fldCustomDim').style.display='none'; S.canvas.maxDim=v; }
@@ -606,6 +627,22 @@ function buildPanel(){
     S.output.qmode=v; $('#fldQ').style.display=v==='custom'?'':'none'; schedule();
   });
   Slider($('#fldQ'),'Mức chất lượng',50,100,1,()=>S.output.quality,v=>{S.output.quality=v;schedule();},v=>v+'%');
+}
+
+const RATIO_PRESETS=[{w:1,h:1,l:'1:1'},{w:4,h:5,l:'4:5'},{w:3,h:4,l:'3:4'},{w:2,h:3,l:'2:3'},{w:16,h:9,l:'16:9'},{w:9,h:16,l:'9:16'}];
+function buildRatioChips(){
+  const host=$('#ratioChips'); if(!host)return; host.innerHTML='';
+  RATIO_PRESETS.forEach(p=>{
+    const b=document.createElement('button'); b.type='button'; b.className='rc'; b.dataset.w=p.w; b.dataset.h=p.h; b.textContent=p.l;
+    b.onclick=()=>{ S.canvas.ratioW=p.w; S.canvas.ratioH=p.h; $('#ratioW').value=p.w; $('#ratioH').value=p.h; markRatioChip(); schedule(); };
+    host.appendChild(b);
+  });
+  markRatioChip();
+}
+function markRatioChip(){
+  document.querySelectorAll('#ratioChips .rc').forEach(b=>{
+    b.classList.toggle('on', +b.dataset.w===S.canvas.ratioW && +b.dataset.h===S.canvas.ratioH);
+  });
 }
 
 /* ================= frames ================= */
@@ -766,7 +803,12 @@ function updateCounts(){
 /* ================= core render pipeline ================= */
 function computeDims(bw,bh){
   let cw,ch;
-  if(S.canvas.mode==='square'){ cw=ch=Math.max(bw,bh); } else { cw=bw; ch=bh; }
+  if(S.canvas.mode==='square'){ cw=ch=Math.max(bw,bh); }
+  else if(S.canvas.mode==='ratio'){
+    const r=(S.canvas.ratioW||1)/(S.canvas.ratioH||1), ir=bw/bh;
+    if(ir>r){ cw=bw; ch=Math.round(bw/r); } else { ch=bh; cw=Math.round(bh*r); }
+  }
+  else { cw=bw; ch=bh; }
   const md=S.canvas.maxDim, longest=Math.max(cw,ch);
   if(md&&longest>md){ const k=md/longest; cw=Math.round(cw*k); ch=Math.round(ch*k); }
   return {w:cw,h:ch};
