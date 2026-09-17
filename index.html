@@ -12,6 +12,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0E1729">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NS Ảnh">
+<link rel="apple-touch-icon" href="./icon.png">
+<link rel="icon" href="./icon.png">
 <style>
 :root{
   --bg:#0B1220; --panel:#111A2E; --card:#16213A; --card-2:#182642;
@@ -312,6 +320,27 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
   .hd-chip{padding:6px 10px}
 }
 .hidden{display:none!important}
+
+/* ---- install guide modal ---- */
+.modal-bg{position:fixed;inset:0;z-index:300;background:rgba(6,11,22,.72);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;padding:20px}
+.modal-bg.show{display:flex}
+.modal{width:100%;max-width:420px;background:linear-gradient(180deg,#16233E,#111A2E);border:1px solid var(--line-2);border-radius:16px;box-shadow:0 24px 60px rgba(4,9,20,.7);overflow:hidden;animation:tin .22s ease}
+.modal-h{display:flex;align-items:center;gap:12px;padding:17px 18px;border-bottom:1px solid var(--line)}
+.modal-ic{width:36px;height:36px;flex:none;border-radius:10px;background:var(--grad);color:#fff;display:grid;place-items:center;box-shadow:0 0 10px rgba(46,142,131,.3)}
+.modal-ic svg{width:19px;height:19px}
+.modal-h h3{flex:1;font-size:15.5px}
+.modal-x{width:30px;height:30px;border-radius:8px;color:var(--muted);display:grid;place-items:center;transition:background .14s,color .14s}
+.modal-x:hover{background:rgba(255,255,255,.07);color:var(--txt)}
+.modal-x svg{width:16px;height:16px}
+.modal-b{padding:18px}
+.gstep{display:flex;gap:13px;align-items:flex-start;padding:11px 0}
+.gstep+.gstep{border-top:1px solid var(--line)}
+.gnum{width:26px;height:26px;flex:none;border-radius:50%;background:var(--teal-deep);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;font-family:'JetBrains Mono',monospace}
+.gtxt{font-size:13.5px;line-height:1.5;color:var(--txt)}
+.gtxt .gi{display:inline-flex;vertical-align:-4px;margin:0 3px;color:var(--teal-lite)}
+.gtxt .gi svg{width:17px;height:17px}
+.gtxt b{color:var(--teal-lite);font-weight:600}
+.modal-note{margin-top:6px;font-size:11.5px;color:var(--muted-2);line-height:1.5}
 </style>
 </head>
 <body data-tab="img">
@@ -330,6 +359,10 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
     </div>
     <div class="cmd-sp"></div>
     <div class="hd-chip"><span class="dot"></span><b id="chipCount">0</b>&nbsp;ảnh · <b id="chipSize">0 B</b></div>
+    <button class="btn-hd hidden" id="btnInstall">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+      Cài app
+    </button>
     <button class="btn-hd" id="btnAddTop">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
       Thêm ảnh
@@ -509,6 +542,18 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
 </div>
 
 <div class="toasts" id="toasts"></div>
+
+<!-- install guide -->
+<div class="modal-bg" id="guideBg">
+  <div class="modal">
+    <div class="modal-h">
+      <div class="modal-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg></div>
+      <h3 id="guideTitle">Cài ứng dụng ra màn hình</h3>
+      <button class="modal-x" id="guideClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-b" id="guideBody"></div>
+  </div>
+</div>
 
 <!-- hidden inputs -->
 <input type="file" id="fileInput" accept="image/*" multiple hidden>
@@ -1083,8 +1128,52 @@ function wire(){
   mid.addEventListener('dragover',over);
 }
 
+/* ================= PWA : cài app ================= */
+let deferredPrompt=null;
+const isFileProto=location.protocol==='file:';
+const isStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+const isIOS=()=>{ const ua=navigator.userAgent; return /iphone|ipad|ipod/i.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1); };
+function showInstall(v){ const b=$('#btnInstall'); if(b)b.classList.toggle('hidden',!v); }
+const SHARE_ICON='<span class="gi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></span>';
+const PLUS_ICON='<span class="gi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/></svg></span>';
+function openGuide(kind){
+  const body=$('#guideBody');
+  if(kind==='ios'){
+    $('#guideTitle').textContent='Thêm vào Màn hình chính';
+    body.innerHTML=
+      '<div class="gstep"><div class="gnum">1</div><div class="gtxt">Bấm nút <b>Chia sẻ</b>'+SHARE_ICON+'ở thanh công cụ Safari (giữa màn hình dưới, hoặc góc trên).</div></div>'+
+      '<div class="gstep"><div class="gnum">2</div><div class="gtxt">Kéo xuống chọn <b>Thêm vào MH chính</b>'+PLUS_ICON+'</div></div>'+
+      '<div class="gstep"><div class="gnum">3</div><div class="gtxt">Bấm <b>Thêm</b> ở góc phải. Icon <b>NS Ảnh</b> hiện ra màn hình như một app.</div></div>'+
+      '<div class="modal-note">Cần mở bằng Safari. App chạy toàn màn hình và dùng được cả khi mạng yếu.</div>';
+  }else{
+    $('#guideTitle').textContent='Cài trên máy tính';
+    body.innerHTML=
+      '<div class="gstep"><div class="gnum">1</div><div class="gtxt">Trên <b>Chrome / Edge</b>, nhìn cuối thanh địa chỉ tìm biểu tượng <b>Cài</b> (màn hình có mũi tên xuống).</div></div>'+
+      '<div class="gstep"><div class="gnum">2</div><div class="gtxt">Hoặc mở menu <b>⋮</b> → <b>Cài NS · XỬ LÝ ẢNH…</b></div></div>'+
+      '<div class="gstep"><div class="gnum">3</div><div class="gtxt">Bấm <b>Cài</b>. App mở trong cửa sổ riêng và có icon ngoài desktop.</div></div>'+
+      '<div class="modal-note">Nếu không thấy nút Cài, tải lại trang một lần rồi thử lại.</div>';
+  }
+  $('#guideBg').classList.add('show');
+}
+function closeGuide(){ $('#guideBg').classList.remove('show'); }
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredPrompt=e; if(!isStandalone())showInstall(true); });
+window.addEventListener('appinstalled',()=>{ deferredPrompt=null; showInstall(false); closeGuide(); toast('Đã cài NS · XỬ LÝ ẢNH'); });
+function initInstall(){
+  $('#guideClose').onclick=closeGuide;
+  $('#guideBg').onclick=e=>{ if(e.target===$('#guideBg'))closeGuide(); };
+  if(isFileProto||isStandalone()){ showInstall(false); return; }   // mở file cục bộ / đã cài thì ẩn
+  showInstall(true);
+  $('#btnInstall').onclick=async()=>{
+    if(deferredPrompt){ deferredPrompt.prompt(); const c=await deferredPrompt.userChoice; deferredPrompt=null; showInstall(c.outcome!=='accepted'); return; }
+    openGuide(isIOS()?'ios':'desktop');
+  };
+}
+if('serviceWorker' in navigator && !isFileProto){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+}
+
 /* ================= init ================= */
-buildPanel(); updateFrameUI(); renderGrid(); updateCounts(); wire();
+buildPanel(); updateFrameUI(); renderGrid(); updateCounts(); wire(); initInstall();
 if(!('showDirectoryPicker' in window)){ /* folder-save unsupported: button will toast on click */ }
 })();
 </script>

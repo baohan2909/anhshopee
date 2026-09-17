@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "NS · XỬ LÝ ẢNH",
+  "short_name": "NS Ảnh",
+  "description": "Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT — gắn khung, chuẩn kích thước, giữ tên file.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0B1220",
+  "theme_color": "#0E1729",
+  "lang": "vi",
+  "dir": "ltr",
+  "categories": ["photo", "productivity", "utilities"],
+  "icons": [
+    { "src": "./icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
