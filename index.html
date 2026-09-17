@@ -439,7 +439,8 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
               <div class="lbl">Căn dọc</div>
               <div class="seg" id="segAlignY"></div>
             </div>
-            <div class="field" id="fldBaseline"></div>
+            <div class="field" id="fldAnchorY"></div>
+            <div class="field" id="fldBaseline" style="display:none"></div>
             <div class="row2">
               <div class="field" id="fldSafeTop"></div>
               <div class="field" id="fldSafeSide"></div>
@@ -645,7 +646,7 @@ const state={
 };
 const S={
   bg:{type:'white',color:'#ffffff',imageId:null,fit:'cover'},
-  fit:{mode:'main',target:60,alignY:'baseline',baseline:85,safeTop:17,safeSide:3,guard:'on',showBox:'on'},
+  fit:{mode:'main',target:60,alignY:'center',anchorY:54,baseline:85,safeTop:17,safeSide:3,guard:'on',showBox:'on'},
   fg:{scale:100,offX:0,offY:0,rotate:0},
   frame:{id:null,z:'over',fit:'stretch',scale:100,offX:0,offY:0,rotate:0,opacity:100},
   canvas:{mode:'original',maxDim:0,ratioW:3,ratioH:4},
@@ -744,9 +745,13 @@ function buildPanel(){
     renderGrid(); updateAnHint(); schedule();
   });
   fitUI.target=Slider($('#fldTarget'),'Cỡ chuẩn (cạnh dài sản phẩm)',30,90,1,()=>S.fit.target,v=>{S.fit.target=v;schedule();},v=>v+'%');
-  Seg($('#segAlignY'),[{v:'baseline',label:'Đáy chuẩn'},{v:'center',label:'Giữa khung'}],()=>S.fit.alignY,v=>{
-    S.fit.alignY=v; $('#fldBaseline').style.display=v==='baseline'?'':'none'; schedule();
+  Seg($('#segAlignY'),[{v:'center',label:'Tâm ảnh'},{v:'baseline',label:'Đáy chuẩn'}],()=>S.fit.alignY,v=>{
+    S.fit.alignY=v;
+    $('#fldAnchorY').style.display=v==='center'?'':'none';
+    $('#fldBaseline').style.display=v==='baseline'?'':'none';
+    schedule();
   });
+  Slider($('#fldAnchorY'),'Tâm dọc (giao 2 đường chéo)',30,70,1,()=>S.fit.anchorY,v=>{S.fit.anchorY=v;schedule();},v=>v+'%');
   Slider($('#fldBaseline'),'Đáy sản phẩm',60,98,1,()=>S.fit.baseline,v=>{S.fit.baseline=v;schedule();},v=>v+'%');
   Slider($('#fldSafeTop'),'Chừa trên',0,40,1,()=>S.fit.safeTop,v=>{S.fit.safeTop=v;schedule();},v=>v+'%');
   Slider($('#fldSafeSide'),'Chừa mép',0,15,1,()=>S.fit.safeSide,v=>{S.fit.safeSide=v;schedule();},v=>v+'%');
@@ -1152,8 +1157,16 @@ function fgLayout(bmp,cw,ch,img){
   const bh2=(cy1-cy0)*k;
   const px=cw/2+S.fg.offX/100*cw;
   let py;
-  if(usable&&F.alignY==='baseline'){ py=F.baseline/100*ch-bh2/2+S.fg.offY/100*ch; }
-  else { py=ch/2+S.fg.offY/100*ch; }
+  if(!usable)py=ch/2;
+  else if(F.alignY==='baseline')py=F.baseline/100*ch-bh2/2;   // neo theo đáy
+  else py=F.anchorY/100*ch;                                    // neo theo tâm hộp bao (giao 2 đường chéo)
+  // giữ trong vùng an toàn trước, rồi mới cộng tinh chỉnh tay
+  if(usable&&F.guard==='on'){
+    const sx=F.safeSide/100*cw, sTop=F.safeTop/100*ch, sBot=ch-sx;
+    if(py-bh2/2<sTop)py=sTop+bh2/2;
+    if(py+bh2/2>sBot)py=sBot-bh2/2;
+  }
+  py+=S.fg.offY/100*ch;
   return {k,W,H,ccx,ccy,px,py,usable,ref,con,count:boxes.count};
 }
 function drawFg(ctx,bmp,cw,ch,img){
@@ -1175,6 +1188,15 @@ function drawDetectBox(ctx,L,bmp,cw,ch){
   const u=Math.max(4,Math.min(cw,ch)/90);
   if(L.count>1)box(L.con,'rgba(203,164,90,.85)',[u*0.7,u*0.7]);
   box(L.ref,'rgba(95,208,194,.95)',[u,u*0.6]);
+  // giao điểm 2 đường chéo của hộp nội dung = điểm neo
+  const b=L.con, bx=b[0]*W0*k-L.ccx, by=b[1]*H0*k-L.ccy, bw=(b[2]-b[0])*W0*k, bh=(b[3]-b[1])*H0*k;
+  ctx.save(); ctx.translate(L.px,L.py); if(S.fg.rotate)ctx.rotate(S.fg.rotate*Math.PI/180);
+  ctx.setLineDash([u*0.3,u*0.5]); ctx.lineWidth=Math.max(1,Math.min(cw,ch)/600); ctx.strokeStyle='rgba(95,208,194,.4)';
+  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+bw,by+bh); ctx.moveTo(bx+bw,by); ctx.lineTo(bx,by+bh); ctx.stroke();
+  ctx.setLineDash([]); ctx.lineWidth=Math.max(1.5,Math.min(cw,ch)/300); ctx.strokeStyle='rgba(95,208,194,.95)';
+  const r=u*1.1;
+  ctx.beginPath(); ctx.moveTo(-r,0); ctx.lineTo(r,0); ctx.moveTo(0,-r); ctx.lineTo(0,r); ctx.stroke();
+  ctx.restore();
   const F=S.fit, sx=F.safeSide/100*cw, sTop=F.safeTop/100*ch;
   ctx.save(); ctx.setLineDash([u*0.35,u*0.9]); ctx.lineWidth=Math.max(1,Math.min(cw,ch)/500);
   ctx.strokeStyle='rgba(231,237,245,.35)';
