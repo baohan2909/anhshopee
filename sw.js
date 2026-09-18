@@ -1,6 +1,6 @@
 /* NS · XỬ LÝ ẢNH — service worker
    Tăng số phiên bản mỗi lần đổi index.html để trình duyệt tải bản mới. */
-const CACHE = 'ns-anh-v6';
+const CACHE = 'ns-anh-v7';
 const FONT_CACHE = 'ns-anh-fonts-v1';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.png'];
 

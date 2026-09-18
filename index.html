@@ -434,6 +434,10 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
             <div class="seg" id="segFitMode"></div>
           </div>
           <div id="autoFitWrap">
+            <div class="field">
+              <div class="lbl">Cạnh dài căng theo</div>
+              <div class="seg" id="segBasis"></div>
+            </div>
             <div class="field" id="fldTarget"></div>
             <div class="field">
               <div class="lbl">Căn dọc</div>
@@ -646,7 +650,7 @@ const state={
 };
 const S={
   bg:{type:'white',color:'#ffffff',imageId:null,fit:'cover'},
-  fit:{mode:'main',target:60,alignY:'center',anchorY:54,baseline:85,safeTop:17,safeSide:3,guard:'on',showBox:'on'},
+  fit:{mode:'main',basis:'frame',target:60,alignY:'center',anchorY:54,baseline:85,safeTop:17,safeSide:3,guard:'on',showBox:'on'},
   fg:{scale:100,offX:0,offY:0,rotate:0},
   frame:{id:null,z:'over',fit:'stretch',scale:100,offX:0,offY:0,rotate:0,opacity:100},
   canvas:{mode:'original',maxDim:0,ratioW:3,ratioH:4},
@@ -744,7 +748,12 @@ function buildPanel(){
     if(v!=='full')queueAnalyze(state.images);
     renderGrid(); updateAnHint(); schedule();
   });
-  fitUI.target=Slider($('#fldTarget'),'Cỡ chuẩn (cạnh dài sản phẩm)',30,90,1,()=>S.fit.target,v=>{S.fit.target=v;schedule();},v=>v+'%');
+  Seg($('#segBasis'),[{v:'frame',label:'Cạnh khung'},{v:'safe',label:'Vùng an toàn'}],()=>S.fit.basis,v=>{
+    const old=S.fit.basis; S.fit.basis=v;
+    if(old!==v){ S.fit.target = v==='safe'?100:60; fitUI.target&&fitUI.target.set(S.fit.target); }
+    schedule();
+  });
+  fitUI.target=Slider($('#fldTarget'),'Cỡ chuẩn (cạnh dài sản phẩm)',20,100,1,()=>S.fit.target,v=>{S.fit.target=v;schedule();},v=>v+'%');
   Seg($('#segAlignY'),[{v:'center',label:'Tâm ảnh'},{v:'baseline',label:'Đáy chuẩn'}],()=>S.fit.alignY,v=>{
     S.fit.alignY=v;
     $('#fldAnchorY').style.display=v==='center'?'':'none';
@@ -1141,8 +1150,13 @@ function fgLayout(bmp,cw,ch,img){
   const cx0=con[0]*W0, cy0=con[1]*H0, cx1=con[2]*W0, cy1=con[3]*H0;
   let k;
   if(!usable){ const b=containRect(W0,H0,cw,ch); k=b.w/W0; }
-  else { const REF=Math.min(cw,ch); k=(F.target/100*REF)/Math.max(1,Math.max(rw,rh)); }
-  k*=S.fg.scale/100;
+  else {
+    const sx=F.safeSide/100*cw, sTop=F.safeTop/100*ch;
+    // MỘT mốc duy nhất cho mọi hướng -> cạnh dài ngang hay dọc đều ra bằng nhau
+    const REF = F.basis==='safe' ? Math.min(cw-2*sx, ch-sTop-sx) : Math.min(cw,ch);
+    k=(F.target/100*REF)/Math.max(1,Math.max(rw,rh));
+  }
+  k*=S.fg.scale/100;                                    // một hệ số cho cả 2 chiều -> không méo
   if(usable&&F.guard==='on'){
     const sx=F.safeSide/100*cw, sTop=F.safeTop/100*ch;
     const sw=cw-2*sx, sh=ch-sTop-sx;
