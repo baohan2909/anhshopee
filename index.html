@@ -438,7 +438,12 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
               <div class="lbl">Cạnh dài căng theo</div>
               <div class="seg" id="segBasis"></div>
             </div>
+            <div class="field">
+              <div class="lbl">Lấy chuẩn theo cạnh</div>
+              <div class="seg" id="segEdge"></div>
+            </div>
             <div class="field" id="fldTarget"></div>
+            <div class="field" id="fldMaxLong"></div>
             <div class="field">
               <div class="lbl">Căn dọc</div>
               <div class="seg" id="segAlignY"></div>
@@ -650,7 +655,7 @@ const state={
 };
 const S={
   bg:{type:'white',color:'#ffffff',imageId:null,fit:'cover'},
-  fit:{mode:'main',basis:'frame',target:60,alignY:'center',anchorY:54,baseline:85,safeTop:17,safeSide:3,guard:'on',showBox:'on'},
+  fit:{mode:'main',basis:'frame',edge:'short',target:60,maxLong:90,alignY:'center',anchorY:54,baseline:85,safeTop:17,safeSide:3,guard:'on',showBox:'on'},
   fg:{scale:100,offX:0,offY:0,rotate:0},
   frame:{id:null,z:'over',fit:'stretch',scale:100,offX:0,offY:0,rotate:0,opacity:100},
   canvas:{mode:'original',maxDim:0,ratioW:3,ratioH:4},
@@ -713,7 +718,7 @@ function Slider(host,label,min,max,step,get,set,fmt){
   upFill();
   inp.oninput=()=>{ v.textContent=fmt(+inp.value); upFill(); set(+inp.value); };
   host.appendChild(h); host.appendChild(inp);
-  return { set:(val)=>{ inp.value=val; v.textContent=fmt(+val); upFill(); } };
+  return { set:(val)=>{ inp.value=val; v.textContent=fmt(+val); upFill(); }, label:(t)=>{ l.textContent=t; } };
 }
 
 /* ================= build settings panel ================= */
@@ -753,7 +758,13 @@ function buildPanel(){
     if(old!==v){ S.fit.target = v==='safe'?100:60; fitUI.target&&fitUI.target.set(S.fit.target); }
     schedule();
   });
-  fitUI.target=Slider($('#fldTarget'),'Cỡ chuẩn (cạnh dài sản phẩm)',20,100,1,()=>S.fit.target,v=>{S.fit.target=v;schedule();},v=>v+'%');
+  Seg($('#segEdge'),[{v:'short',label:'Cạnh ngắn'},{v:'long',label:'Cạnh dài'}],()=>S.fit.edge,v=>{
+    S.fit.edge=v; $('#fldMaxLong').style.display=v==='short'?'':'none';
+    if(fitUI.target)fitUI.target.label(v==='short'?'Cỡ chuẩn (cạnh ngắn sản phẩm)':'Cỡ chuẩn (cạnh dài sản phẩm)');
+    schedule();
+  });
+  fitUI.target=Slider($('#fldTarget'),'Cỡ chuẩn (cạnh ngắn sản phẩm)',20,100,1,()=>S.fit.target,v=>{S.fit.target=v;schedule();},v=>v+'%');
+  Slider($('#fldMaxLong'),'Cạnh dài tối đa',50,100,1,()=>S.fit.maxLong,v=>{S.fit.maxLong=v;schedule();},v=>v+'%');
   Seg($('#segAlignY'),[{v:'center',label:'Tâm ảnh'},{v:'baseline',label:'Đáy chuẩn'}],()=>S.fit.alignY,v=>{
     S.fit.alignY=v;
     $('#fldAnchorY').style.display=v==='center'?'':'none';
@@ -1152,9 +1163,16 @@ function fgLayout(bmp,cw,ch,img){
   if(!usable){ const b=containRect(W0,H0,cw,ch); k=b.w/W0; }
   else {
     const sx=F.safeSide/100*cw, sTop=F.safeTop/100*ch;
-    // MỘT mốc duy nhất cho mọi hướng -> cạnh dài ngang hay dọc đều ra bằng nhau
+    // MỘT mốc duy nhất cho mọi hướng -> ngang hay dọc đều ra bằng nhau
     const REF = F.basis==='safe' ? Math.min(cw-2*sx, ch-sTop-sx) : Math.min(cw,ch);
-    k=(F.target/100*REF)/Math.max(1,Math.max(rw,rh));
+    const minE=Math.max(1,Math.min(rw,rh)), maxE=Math.max(1,rw,rh);
+    if(F.edge==='short'){
+      k=(F.target/100*REF)/minE;                        // cạnh ngắn bằng cỡ chuẩn
+      const cap=(F.maxLong/100*REF)/maxE;               // nhưng cạnh dài không quá mức cho phép
+      if(cap<k)k=cap;
+    }else{
+      k=(F.target/100*REF)/maxE;                        // cạnh dài bằng cỡ chuẩn
+    }
   }
   k*=S.fg.scale/100;                                    // một hệ số cho cả 2 chiều -> không méo
   if(usable&&F.guard==='on'){
