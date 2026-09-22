@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  anhshopee — NS · XỬ LÝ ẢNH   v1.0
+  anhshopee — NS · XỬ LÝ ẢNH   v1.3
   Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT. Chạy 100% trong trình duyệt, không server.
   Chạy: bấm đúp file này (local), hoặc thả vào repo GitHub → GitHub Pages tự chạy.
 -->
@@ -325,6 +325,50 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
   .hd-chip{padding:6px 10px}
 }
 .hidden{display:none!important}
+/* ---- v1.3 · Nhập Excel Shopee ---- */
+.modal.xl{max-width:640px;max-height:calc(100vh - 40px);display:flex;flex-direction:column}
+.modal.xl .modal-b{overflow:auto}
+.xl-steps{display:flex;gap:8px;margin-bottom:16px}
+.xs{flex:1;display:flex;align-items:center;gap:8px;height:34px;padding:0 11px;border-radius:9px;background:var(--card-2);border:1px solid var(--line);font-size:11.5px;font-weight:600;color:var(--muted)}
+.xs i{font-style:normal;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.06);color:var(--muted)}
+.xs.on{background:var(--teal-deep);border-color:var(--teal-deep);color:#fff}
+.xs.on i{background:rgba(255,255,255,.18);color:#fff}
+.xs.done{color:var(--teal-lite);border-color:rgba(63,182,168,.3)}
+.xs.done i{background:rgba(63,182,168,.16);color:var(--teal-lite)}
+.xl-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:170px;border:1.5px dashed var(--line-2);border-radius:13px;background:rgba(255,255,255,.02);cursor:pointer;text-align:center;padding:18px;transition:border-color .15s,background .15s}
+.xl-drop:hover,.xl-drop.over{border-color:var(--teal);background:rgba(63,182,168,.06)}
+.xl-drop svg{width:34px;height:34px;color:var(--teal-lite)}
+.xl-drop b{font-size:14px;font-weight:700}
+.xl-drop span{font-size:12px;color:var(--muted)}
+.xl-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}
+.xl-stats .stat{flex-direction:column;align-items:flex-start;gap:3px;padding:10px 12px}
+.xl-stats .sv{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;color:var(--teal-lite)}
+.xl-stats .sl{font-size:10.5px;color:var(--muted);font-weight:600}
+.xl-pos{display:flex;flex-wrap:wrap;gap:6px}
+.xl-pc{height:30px;padding:0 10px;border-radius:8px;font-size:11.5px;font-weight:600;color:var(--muted);background:var(--card-2);border:1px solid var(--line-2);display:inline-flex;align-items:center;gap:6px;transition:all .14s}
+.xl-pc em{font-style:normal;font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.75}
+.xl-pc.on{background:var(--teal-deep);border-color:var(--teal-deep);color:#fff}
+.xl-note{font-size:11.5px;line-height:1.55;color:var(--muted);background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:2px 0 12px}
+.xl-note b{color:var(--txt)}
+.xl-note.warn{border-color:rgba(203,164,90,.35);background:rgba(203,164,90,.07)}
+.xl-note.warn b{color:var(--gold)}
+.xl-adv{border:1px solid var(--line);border-radius:10px;padding:0 12px;margin-bottom:12px}
+.xl-adv summary{cursor:pointer;height:38px;display:flex;align-items:center;font-size:12px;font-weight:600;color:var(--muted);list-style:none}
+.xl-adv summary::-webkit-details-marker{display:none}
+.xl-adv[open]{padding-bottom:12px}
+.xl-row{display:flex;gap:8px;align-items:center}
+.xl-sum{font-size:12px;color:var(--muted);margin:4px 0 12px;text-align:center}
+.xl-sum b{color:var(--teal-lite);font-family:'JetBrains Mono',monospace}
+.xl-phase{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 8px}
+.xl-phase span{font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.xl-phase b{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--teal-lite)}
+.xl-meta{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.xl-meta .chip{font-size:11px;padding:5px 9px}
+.xl-errs{max-height:130px;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#f3a4a6;background:rgba(229,72,77,.06);border:1px solid rgba(229,72,77,.22);border-radius:9px;padding:8px 10px;margin-bottom:12px;line-height:1.6}
+.xl-errs:empty{display:none}
+.xl-actions{display:flex;flex-wrap:wrap;gap:8px}
+.tile-cut{position:absolute;top:6px;left:34px;height:20px;padding:0 7px;border-radius:6px;font-size:9.5px;font-weight:700;letter-spacing:.04em;line-height:20px;background:rgba(11,18,32,.85);backdrop-filter:blur(4px);color:var(--teal-lite);border:1px solid rgba(63,182,168,.35);z-index:3}
+.tile-cut.plain{color:var(--gold);border-color:rgba(203,164,90,.4)}
 
 /* ---- install guide modal ---- */
 .modal-bg{position:fixed;inset:0;z-index:300;background:rgba(6,11,22,.72);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;padding:20px}
@@ -334,6 +378,9 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
 .modal-ic{width:36px;height:36px;flex:none;border-radius:10px;background:var(--grad);color:#fff;display:grid;place-items:center;box-shadow:0 0 10px rgba(46,142,131,.3)}
 .modal-ic svg{width:19px;height:19px}
 .modal-h h3{flex:1;font-size:15.5px}
+.modal-t{flex:1;min-width:0}
+.modal-t h4{font-size:15.5px;font-weight:700}
+.modal-t p{font-size:11.5px;color:var(--muted);margin-top:2px}
 .modal-x{width:30px;height:30px;border-radius:8px;color:var(--muted);display:grid;place-items:center;transition:background .14s,color .14s}
 .modal-x:hover{background:rgba(255,255,255,.07);color:var(--txt)}
 .modal-x svg{width:16px;height:16px}
@@ -474,6 +521,12 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
           </div>
           <div class="field" id="fldFgRot"></div>
           <button class="btn-mini" id="btnFgReset" style="width:100%;justify-content:center;height:34px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"/></svg>Căn giữa lại</button>
+          <div class="divide"></div>
+          <div class="field"><div class="lbl">Bóng sản phẩm</div><div class="seg" id="segShadow"></div></div>
+          <div id="shadowWrap" style="display:none">
+            <div class="row2"><div class="field" id="fldShOp"></div><div class="field" id="fldShBlur"></div></div>
+            <div class="field" id="fldShY"></div>
+          </div>
         </div>
       </div>
 
@@ -564,6 +617,7 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
         </div>
         <div class="tb-count"><b id="selCount">0</b>/<span id="totCount">0</span> chọn</div>
         <div class="tb-sp"></div>
+        <button class="btn-mini" id="btnExcel" title="Nhập ảnh từ file Excel Shopee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>Excel</button>
         <button class="btn-mini" id="btnSort"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 4v16"/></svg><span id="sortLabel">Tên A→Z</span></button>
         <button class="btn-mini" id="btnSelAll"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Chọn tất cả</button>
         <button class="btn-mini danger" id="btnClear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>Xóa hết</button>
@@ -578,6 +632,7 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
         <div class="ebtns">
           <button class="ebtn pri" id="btnPickFiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v13"/></svg>Chọn ảnh</button>
           <button class="ebtn" id="btnPickFolder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>Chọn thư mục</button>
+          <button class="ebtn" id="btnPickExcel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>Nhập từ Excel Shopee</button>
         </div>
         <div class="paste">hoặc dán ảnh bằng <kbd>Ctrl</kbd> + <kbd>V</kbd></div>
       </div>
@@ -622,6 +677,65 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
 </div>
 
 <!-- hidden inputs -->
+<div class="modal-bg" id="xlBg">
+  <div class="modal xl">
+    <div class="modal-h">
+      <div class="modal-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></div>
+      <div class="modal-t"><h4>Nhập ảnh từ Excel Shopee</h4><p>Tải ảnh theo link · tách nền · đưa vào lưới để ghép khung mới</p></div>
+      <button class="modal-x" id="xlClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-b">
+      <div class="xl-steps"><div class="xs on" id="xs1"><i>1</i>Đọc file</div><div class="xs" id="xs2"><i>2</i>Tải ảnh</div><div class="xs" id="xs3"><i>3</i>Tách nền</div></div>
+
+      <div id="xlDrop" class="xl-drop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/><path d="M9 13l2 2 4-4"/></svg>
+        <b>Kéo file .xlsx vào đây</b><span>hoặc bấm để chọn · file xuất từ Shopee, các cột ảnh là link</span>
+      </div>
+
+      <div id="xlCfg" class="hidden">
+        <div class="xl-stats">
+          <div class="stat"><div class="sv" id="xlStP">0</div><div class="sl">Sản phẩm</div></div>
+          <div class="stat"><div class="sv" id="xlStL">0</div><div class="sl">Link ảnh</div></div>
+          <div class="stat"><div class="sv" id="xlStD" style="color:var(--gold)">0</div><div class="sl">Link trùng · tải 1 lần</div></div>
+        </div>
+        <div class="row2">
+          <div class="field"><div class="lbl">Tên thư mục lấy theo cột</div><div id="xlSku"></div></div>
+          <div class="field"><div class="lbl">Lọc SKU <span style="color:var(--muted-2);font-weight:500">· trống = tất cả</span></div><input class="inp" id="xlFilter" placeholder="vd: MH194"></div>
+        </div>
+        <div class="field"><div class="lbl">Lấy vị trí ảnh</div><div class="xl-pos" id="xlPos"></div></div>
+        <div class="field"><div class="lbl">Tách nền</div><div class="seg" id="xlMode"></div></div>
+        <div class="xl-note" id="xlModeNote"></div>
+        <div class="field"><div class="lbl">Kèm ảnh tách nền PNG trong ZIP xuất</div><div class="seg" id="xlKeep"></div></div>
+        <details class="xl-adv" id="xlAdv">
+          <summary>Kết nối Shopee <span id="xlConn" style="margin-left:8px;color:var(--muted-2);font-weight:500"></span></summary>
+          <div class="field"><div class="lbl">Link proxy Google Apps Script <span style="color:var(--muted-2);font-weight:500">· chỉ cần khi Shopee chặn tải thẳng</span></div>
+            <div class="xl-row"><input class="inp" id="xlProxy" placeholder="https://script.google.com/macros/s/…/exec"><button class="btn-mini" id="xlTest" style="height:36px;flex:none">Kiểm tra</button></div>
+          </div>
+          <div class="modal-note">App tự thử tải thẳng trước. Nếu Shopee chặn, dán link web app từ file <b>proxy-shopee.gs</b> vào đây — lưu lại trong máy này.</div>
+        </details>
+        <div class="xl-sum" id="xlSum"></div>
+        <button class="btn-ai" id="xlStart" style="width:100%;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Tải &amp; tách nền</button>
+      </div>
+
+      <div id="xlRun" class="hidden">
+        <div class="xl-phase"><span>Tải ảnh</span><b id="xlDlTxt">0 / 0</b></div>
+        <div class="kt-bar"><div class="kt-fill" id="xlDlBar"><div class="kt-song"></div><span class="kt-pct" id="xlDlPct">0%</span></div></div>
+        <div class="xl-phase" style="margin-top:14px"><span>Tách nền</span><b id="xlCutTxt">0 / 0</b></div>
+        <div class="kt-bar"><div class="kt-fill" id="xlCutBar"><div class="kt-song"></div><span class="kt-pct" id="xlCutPct">0%</span></div></div>
+        <div class="xl-meta" id="xlMeta"></div>
+        <div class="xl-errs" id="xlErrs"></div>
+        <div class="xl-actions">
+          <button class="btn-mini" id="xlPause">Tạm dừng</button>
+          <button class="btn-mini" id="xlRetry" disabled>Thử lại ảnh lỗi</button>
+          <button class="btn-mini" id="xlCsv">Báo cáo CSV</button>
+          <button class="btn-mini" id="xlNew">Nhập file khác</button>
+          <button class="btn-mini" id="xlHide" style="margin-left:auto">Ẩn · chạy nền</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<input type="file" id="xlInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
 <input type="file" id="fileInput" accept="image/*" multiple hidden>
 <input type="file" id="folderInput" webkitdirectory multiple hidden>
 <input type="file" id="frameInput" accept="image/*" multiple hidden>
@@ -657,6 +771,7 @@ const S={
   bg:{type:'white',color:'#ffffff',imageId:null,fit:'cover'},
   fit:{mode:'main',basis:'frame',edge:'short',target:60,maxLong:90,alignY:'center',anchorY:54,baseline:85,safeTop:17,safeSide:3,guard:'on',showBox:'on'},
   fg:{scale:100,offX:0,offY:0,rotate:0},
+  shadow:{type:'none',opacity:28,blur:3,offY:1.5},
   frame:{id:null,z:'over',fit:'stretch',scale:100,offX:0,offY:0,rotate:0,opacity:100},
   canvas:{mode:'original',maxDim:0,ratioW:3,ratioH:4},
   output:{format:'auto',qmode:'original',quality:90}
@@ -777,6 +892,12 @@ function buildPanel(){
   Slider($('#fldSafeSide'),'Chừa mép',0,15,1,()=>S.fit.safeSide,v=>{S.fit.safeSide=v;schedule();},v=>v+'%');
   Seg($('#segGuard'),[{v:'on',label:'Bật'},{v:'off',label:'Tắt'}],()=>S.fit.guard,v=>{S.fit.guard=v;schedule();});
   Seg($('#segShowBox'),[{v:'on',label:'Bật'},{v:'off',label:'Tắt'}],()=>S.fit.showBox,v=>{S.fit.showBox=v;livePreview();});
+  Seg($('#segShadow'),[{v:'none',label:'Không'},{v:'drop',label:'Đổ mềm'},{v:'contact',label:'Tiếp đất'}],()=>S.shadow.type,v=>{
+    S.shadow.type=v; $('#shadowWrap').style.display=v==='none'?'none':''; schedule();
+  });
+  Slider($('#fldShOp'),'Độ đậm',5,70,1,()=>S.shadow.opacity,v=>{S.shadow.opacity=v;schedule();},v=>v+'%');
+  Slider($('#fldShBlur'),'Độ nhòe',0,10,0.5,()=>S.shadow.blur,v=>{S.shadow.blur=v;schedule();},v=>v+'%');
+  Slider($('#fldShY'),'Lệch xuống',0,6,0.5,()=>S.shadow.offY,v=>{S.shadow.offY=v;schedule();},v=>v+'%');
   fgUI.scale=Slider($('#fldFgScale'),'Cỡ ảnh',10,300,1,()=>S.fg.scale,v=>{S.fg.scale=v;schedule();},v=>v+'%');
   fgUI.offX =Slider($('#fldFgX'),'Lệch ngang',-100,100,1,()=>S.fg.offX,v=>{S.fg.offX=v;schedule();},v=>v+'%');
   fgUI.offY =Slider($('#fldFgY'),'Lệch dọc',-100,100,1,()=>S.fg.offY,v=>{S.fg.offY=v;schedule();},v=>v+'%');
@@ -908,7 +1029,8 @@ async function fromDataTransfer(dt){
   for(let i=0;i<dt.files.length;i++){ const f=dt.files[i]; out.push({file:f,relpath:f.name}); }
   return out;
 }
-function addImages(items){   // items: [{file,relpath}]
+function addImages(items,opts){   // items: [{file,relpath,meta?}]
+  opts=opts||{};
   const existing=new Set(state.images.map(i=>i.relpath));
   let added=0,dup=0,skip=0;
   for(const it of items){
@@ -918,14 +1040,17 @@ function addImages(items){   // items: [{file,relpath}]
     existing.add(relpath);
     const name=relpath.split('/').pop();
     const img={ id:'i'+(++state.seq), file:it.file, name, relpath, ext:extOf(name), url:URL.createObjectURL(it.file), status:'idle', outBlob:null,outSize:0,outW:0,outH:0,error:'' };
+    if(it.meta)Object.assign(img,it.meta);
     state.images.push(img); state.sel.add(img.id); added++;
   }
   if(!state.previewId&&state.images.length)state.previewId=sortedImages()[0].id;
   renderGrid(); updateCounts(); updateExtWarn(); updateAnHint();
   if(S.fit.mode!=='full')queueAnalyze(state.images);
-  if(added)renderPreview();
+  if(added&&(!opts.silent||state.images.length===added))renderPreview();
+  if(opts.silent)return added;
   let msg='Đã thêm '+added+' ảnh'; if(dup)msg+=' · bỏ '+dup+' trùng'; if(skip)msg+=' · bỏ '+skip+' không phải ảnh';
   toast(msg);
+  return added;
 }
 
 /* ================= grid ================= */
@@ -957,6 +1082,7 @@ function renderGrid(){
     t.innerHTML=
       '<div class="tile-img"><img loading="lazy" decoding="async" src="'+img.url+'"></div>'+
       '<div class="tile-check">'+IC.check+'</div>'+
+      (img.cutMethod==='ai'?'<span class="tile-cut" title="Tách nền bằng AI">AI</span>':img.cutMethod==='plain'?'<span class="tile-cut plain" title="Tách nền phẳng theo màu">PHẲNG</span>':'')+
       '<button class="tile-x">'+IC.x+'</button>'+
       anBadge(img)+
       badge(img.status)+
@@ -1117,8 +1243,9 @@ function analyzeBitmap(bmp){
   const content=[nx(cx0),ny(cy0),nx(cx1+1),ny(cy1+1)];
   // ảnh chụp tràn viền (không có nền để tách) -> không chuẩn hoá, giữ nguyên như cũ
   if(mode==='bg'&&keep.length===1&&(content[2]-content[0])>0.97&&(content[3]-content[1])>0.97)
-    return {mode:'full-bleed',count:0,main:[0,0,1,1],content:[0,0,1,1]};
-  return {mode,count:keep.length,main,content};
+    return {mode:'full-bleed',count:0,main:[0,0,1,1],content:[0,0,1,1],boxes:[]};
+  const pboxes=keep.slice(0,12).map(b=>[nx(b.x0),ny(b.y0),nx(b.x1+1),ny(b.y1+1)]);
+  return {mode,count:keep.length,main,content,boxes:pboxes};
 }
 /* hàng đợi phân tích chạy ngầm, cache theo ảnh */
 let anQueue=[], anBusy=0;
@@ -1201,9 +1328,31 @@ function fgLayout(bmp,cw,ch,img){
   py+=S.fg.offY/100*ch;
   return {k,W,H,ccx,ccy,px,py,usable,ref,con,count:boxes.count};
 }
+function drawContactShadow(ctx,L,bmp,cw,ch,img){
+  const sh=S.shadow, an=img&&img.an, W0=bmp.width, H0=bmp.height, k=L.k;
+  let boxes=(L.usable&&an&&an.boxes&&an.boxes.length)?an.boxes:[L.con];
+  if(img&&img.ovr==='one'&&an)boxes=[an.content];
+  const a=Math.min(1,sh.opacity/100*1.3);
+  for(const b of boxes){
+    const x0=L.px+(b[0]*W0*k-L.ccx), x1=L.px+(b[2]*W0*k-L.ccx), yb=L.py+(b[3]*H0*k-L.ccy);
+    const bw=x1-x0; if(bw<4)continue;
+    const rx=bw*(0.40+sh.blur/100*2), ry=Math.max(ch*0.01,bw*0.055);
+    const cx=(x0+x1)/2, cy=yb-ry*0.3+sh.offY/100*ch*0.35;
+    ctx.save(); ctx.translate(cx,cy); ctx.scale(1,ry/rx);
+    const g=ctx.createRadialGradient(0,0,0,0,0,rx);
+    g.addColorStop(0,'rgba(58,44,28,'+a+')'); g.addColorStop(0.5,'rgba(58,44,28,'+(a*0.42)+')'); g.addColorStop(1,'rgba(58,44,28,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,rx,0,Math.PI*2); ctx.fill(); ctx.restore();
+  }
+}
 function drawFg(ctx,bmp,cw,ch,img){
-  const L=fgLayout(bmp,cw,ch,img);
-  ctx.save(); ctx.translate(L.px,L.py); if(S.fg.rotate)ctx.rotate(S.fg.rotate*Math.PI/180);
+  const L=fgLayout(bmp,cw,ch,img), sh=S.shadow;
+  if(sh.type==='contact')drawContactShadow(ctx,L,bmp,cw,ch,img);
+  ctx.save();
+  if(sh.type==='drop'){                                   // bóng đổ theo đúng hình nón (kênh alpha)
+    ctx.shadowColor='rgba(58,44,28,'+(sh.opacity/100)+')';
+    ctx.shadowBlur=sh.blur/100*Math.min(cw,ch); ctx.shadowOffsetX=0; ctx.shadowOffsetY=sh.offY/100*ch;
+  }
+  ctx.translate(L.px,L.py); if(S.fg.rotate)ctx.rotate(S.fg.rotate*Math.PI/180);
   ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
   ctx.drawImage(bmp,-L.ccx,-L.ccy,L.W,L.H); ctx.restore();
   return L;
@@ -1331,7 +1480,7 @@ async function renderPreview(){
       '</div>';
     setupCmp();
   }
-  $('#pvBefore').src=img.url;
+  $('#pvBefore').src=img.beforeUrl||img.url;
   try{
     if(pvCache.id!==img.id){ pvCache.bmp&&pvCache.bmp.close&&pvCache.bmp.close(); pvCache.bmp=await createImageBitmap(img.file); pvCache.id=img.id; }
   }catch(e){ toast('Không xem trước được ảnh này',true); return; }
@@ -1440,7 +1589,7 @@ async function downloadZip(){
   if(done.length>65000){ toast('Quá 65.000 ảnh cho 1 ZIP — hãy dùng "Lưu thẳng thư mục"',true); return; }
   const btn=$('#btnZip'); btn.disabled=true; const old=btn.innerHTML; btn.innerHTML='Đang nén…';
   try{
-    const entries=done.map(i=>{ const {type}=outParams(i); return {name:outName(i,type).name,blob:i.outBlob}; });
+    const entries=done.map(i=>{ const {type}=outParams(i); return {name:outName(i,type).name,blob:i.outBlob}; }).concat(xlExtraEntries(done));
     const zip=await buildZip(entries);
     const url=URL.createObjectURL(zip);
     const a=document.createElement('a'); a.href=url; a.download='anhshopee_'+new Date().toISOString().slice(0,10)+'.zip'; a.click();
@@ -1463,6 +1612,11 @@ async function saveFolder(){
       const fh=await dir.getFileHandle(parts[parts.length-1],{create:true});
       const w=await fh.createWritable(); await w.write(img.outBlob); await w.close();
       n++; btn.innerHTML='Đang lưu '+n+'/'+done.length+'…';
+    }
+    for(const ex of xlExtraEntries(done)){
+      const parts=ex.name.split('/'); let dir=root;
+      for(let i=0;i<parts.length-1;i++)dir=await dir.getDirectoryHandle(parts[i],{create:true});
+      const fh=await dir.getFileHandle(parts[parts.length-1],{create:true}); const w=await fh.createWritable(); await w.write(ex.blob); await w.close();
     }
     toast('Đã lưu '+n+' ảnh vào thư mục');
   }catch(e){ toast('Lỗi lưu thư mục: '+e.message,true); }
@@ -1517,6 +1671,8 @@ function wire(){
   ['dragleave','dragend'].forEach(ev=>window.addEventListener(ev,e=>{ dc=Math.max(0,dc-1); if(!dc)dz.classList.remove('show'); }));
   window.addEventListener('drop',async e=>{
     if(!e.dataTransfer)return; e.preventDefault(); dc=0; dz.classList.remove('show');
+    const fl=e.dataTransfer.files&&[...e.dataTransfer.files].find(f=>/\.xlsx$/i.test(f.name));
+    if(fl){ $('#xlBg').classList.add('show'); if(!XL.running)xlOpenFile(fl); return; }
     const items=await fromDataTransfer(e.dataTransfer); if(items.length)addImages(items);
   });
   mid.addEventListener('dragover',over);
@@ -1567,7 +1723,584 @@ if('serviceWorker' in navigator && !isFileProto){
 }
 
 /* ================= init ================= */
-buildPanel(); updateFrameUI(); renderBgAssets(); renderGrid(); updateCounts(); wire(); initInstall();
+/* ================= v1.3 · LÕI NHẬP EXCEL + TÁCH NỀN (hàm thuần) ================= */
+/* ---- đọc .xlsx không cần thư viện: xlsx = zip chứa các file xml ---- */
+async function inflateRaw(u8){
+  const ds=new DecompressionStream('deflate-raw');
+  const stream=new Blob([u8]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function zipRead(buf){
+  const u8=new Uint8Array(buf), dv=new DataView(buf);
+  let eocd=-1;
+  for(let i=u8.length-22;i>=Math.max(0,u8.length-66000);i--){ if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;} }
+  if(eocd<0)throw new Error('Không phải file .xlsx hợp lệ');
+  const n=dv.getUint16(eocd+10,true); let p=dv.getUint32(eocd+16,true);
+  const td=new TextDecoder(), files={};
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    const method=dv.getUint16(p+10,true), csize=dv.getUint32(p+20,true);
+    const nl=dv.getUint16(p+28,true), el=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true), lho=dv.getUint32(p+42,true);
+    const name=td.decode(u8.subarray(p+46,p+46+nl));
+    files[name]={method,csize,lho};
+    p+=46+nl+el+cl;
+  }
+  return {
+    has:nm=>!!files[nm],
+    async text(nm){
+      const f=files[nm]; if(!f)return null;
+      const ln=dv.getUint16(f.lho+26,true), le=dv.getUint16(f.lho+28,true);
+      const st=f.lho+30+ln+le, raw=u8.subarray(st,st+f.csize);
+      const data=f.method===0?raw:f.method===8?await inflateRaw(raw):null;
+      if(!data)throw new Error('Kiểu nén chưa hỗ trợ ('+f.method+')');
+      return td.decode(data);
+    }
+  };
+}
+function xmlDec(s){
+  return s.replace(/&(amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);/gi,(m,e)=>{
+    const l=e.toLowerCase();
+    if(l==='amp')return '&'; if(l==='lt')return '<'; if(l==='gt')return '>'; if(l==='quot')return '"'; if(l==='apos')return "'";
+    return String.fromCodePoint(l[1]==='x'?parseInt(l.slice(2),16):parseInt(l.slice(1),10));
+  });
+}
+function colIdx(ref){ let n=0; for(const ch of ref){ const c=ch.charCodeAt(0); if(c<65||c>90)break; n=n*26+(c-64); } return n-1; }
+function colName(i){ let s=''; i++; while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=(i-m-1)/26; } return s; }
+/* trả về {sheet, rows:[[chuỗi,...]]} — hàng/ cột tính từ 0 */
+async function xlsxRead(buf){
+  const z=await zipRead(buf);
+  const wb=await z.text('xl/workbook.xml'); if(!wb)throw new Error('Thiếu xl/workbook.xml');
+  const sm=/<sheet\b[^>]*?name="([^"]*)"[^>]*?r:id="([^"]*)"/i.exec(wb)||/<sheet\b[^>]*?r:id="([^"]*)"[^>]*?name="([^"]*)"/i.exec(wb);
+  let sheetName='Sheet1', rid=null;
+  if(sm){ if(/name="/.test(sm[0].split('r:id')[0])){ sheetName=xmlDec(sm[1]); rid=sm[2]; } else { rid=sm[1]; sheetName=xmlDec(sm[2]); } }
+  let path='xl/worksheets/sheet1.xml';
+  const rels=await z.text('xl/_rels/workbook.xml.rels');
+  if(rels&&rid){
+    const re=new RegExp('<Relationship\\b[^>]*Id="'+rid+'"[^>]*>','i'), m=re.exec(rels);
+    if(m){ const t=/Target="([^"]*)"/i.exec(m[0]); if(t){ let tg=t[1].replace(/^\//,''); if(!tg.startsWith('xl/'))tg='xl/'+tg; path=tg; } }
+  }
+  const ss=[], sst=await z.text('xl/sharedStrings.xml');
+  if(sst){ const reSi=/<si\b[^>]*>([\s\S]*?)<\/si>/g; let m;
+    while((m=reSi.exec(sst))){ let s=''; const reT=/<t\b[^>]*>([\s\S]*?)<\/t>/g; let t; while((t=reT.exec(m[1])))s+=t[1]; ss.push(xmlDec(s)); } }
+  const sh=await z.text(path); if(!sh)throw new Error('Không đọc được trang tính');
+  const rows=[]; const reC=/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g; let m;
+  while((m=reC.exec(sh))){
+    const at=m[1], body=m[2]||'';
+    const r=/\br="([A-Z]+)(\d+)"/.exec(at); if(!r)continue;
+    const ci=colIdx(r[1]), ri=parseInt(r[2],10)-1;
+    const t=(/\bt="([^"]*)"/.exec(at)||[])[1]||'';
+    let v='';
+    if(t==='inlineStr'){ const reT=/<t\b[^>]*>([\s\S]*?)<\/t>/g; let x; while((x=reT.exec(body)))v+=xmlDec(x[1]); }
+    else { const vv=/<v>([\s\S]*?)<\/v>/.exec(body); if(vv){ v=xmlDec(vv[1]); if(t==='s')v=ss[parseInt(v,10)]||''; } }
+    v=String(v).trim(); if(!v)continue;
+    (rows[ri]=rows[ri]||[])[ci]=v;
+  }
+  return {sheet:sheetName,rows};
+}
+/* nhận cột: SKU, mã SP, tên, các cột link ảnh */
+function xlsxDetect(rows){
+  const isUrl=v=>typeof v==='string'&&/^https?:\/\//i.test(v);
+  let hr=0;
+  for(let i=0;i<Math.min(rows.length,15);i++){ const r=rows[i]||[]; const txt=r.filter(v=>v&&!isUrl(v)).length; if(txt>=3){hr=i;break;} }
+  const head=rows[hr]||[], data=[];
+  for(let i=hr+1;i<rows.length;i++){ const r=rows[i]; if(r&&r.some(v=>v))data.push({row:i,cells:r}); }
+  const ncol=Math.max(head.length,...data.map(d=>d.cells.length));
+  const imgCols=[];
+  for(let c=0;c<ncol;c++){ let u=0; for(const d of data)if(isUrl(d.cells[c]))u++; if(u)imgCols.push({c,label:head[c]||('Cột '+colName(c)),count:u}); }
+  const find=(re,excl)=>{ for(let c=0;c<ncol;c++){ const h=(head[c]||'').toLowerCase(); if(re.test(h)&&!imgCols.some(x=>x.c===c)&&!(excl&&excl.test(h)))return c; } return -1; };
+  let sku=find(/sku/); const id=find(/mã\s*(sản phẩm|sp)|product\s*id|item\s*id/,/sku/);
+  if(sku<0)sku=id>=0?id:find(/mã/);
+  const name=find(/tên|name/);
+  return {headerRow:hr,headers:head,ncol,data,imgCols,skuCol:sku,idCol:id,nameCol:name};
+}
+/* dựng danh sách việc: mỗi ô link = 1 ảnh; trùng link tải 1 lần */
+function safeName(s){ return String(s).replace(/[\\/:*?"<>|\u0000-\u001f]/g,'-').replace(/\s+/g,' ').trim().replace(/[. ]+$/,'')||'khong-ten'; }
+function xlsxJobs(det,opts){
+  const pos=new Set(opts.positions), skuCol=opts.skuCol, flt=(opts.filter||'').trim().toLowerCase();
+  const jobs=[], seenName=new Set();
+  det.data.forEach((d,ri)=>{
+    const sku=safeName(d.cells[skuCol]||d.cells[det.idCol]||('dong-'+(d.row+1)));
+    if(flt&&!sku.toLowerCase().includes(flt))return;
+    det.imgCols.forEach((col,k)=>{
+      if(!pos.has(k))return;
+      const u=d.cells[col.c]; if(!u||!/^https?:\/\//i.test(u))return;
+      let rel=sku+'/'+sku+'-'+k+'.jpg';
+      if(seenName.has(rel))rel=sku+'/'+sku+'-'+k+'-'+(ri+1)+'.jpg';
+      seenName.add(rel);
+      jobs.push({url:u.trim(),sku,pos:k,posLabel:col.label,id:det.idCol>=0?(d.cells[det.idCol]||''):'',rel,status:'cho',method:'',err:''});
+    });
+  });
+  return jobs;
+}
+
+/* ---- tách nền ---- */
+const ISN=1024;
+/* RGBA 1024x1024 -> tensor CHW float32 theo đúng tiền xử lý ISNet (chia max, trừ 0.5) */
+function isnetPre(rgba){
+  const n=ISN*ISN, out=new Float32Array(3*n); let mx=1;
+  for(let i=0;i<n;i++){ const j=i*4; if(rgba[j]>mx)mx=rgba[j]; if(rgba[j+1]>mx)mx=rgba[j+1]; if(rgba[j+2]>mx)mx=rgba[j+2]; }
+  const k=1/mx;
+  for(let i=0;i<n;i++){ const j=i*4; out[i]=rgba[j]*k-0.5; out[n+i]=rgba[j+1]*k-0.5; out[2*n+i]=rgba[j+2]*k-0.5; }
+  return out;
+}
+/* đầu ra -> mặt nạ 0..255 (chuẩn hoá min-max như bản đã thử) */
+function isnetPost(pred){
+  let mn=Infinity,mx=-Infinity; for(let i=0;i<pred.length;i++){ const v=pred[i]; if(v<mn)mn=v; if(v>mx)mx=v; }
+  const r=mx-mn||1, m=new Uint8Array(pred.length);
+  for(let i=0;i<pred.length;i++){ const v=(pred[i]-mn)/r*255; m[i]=v<0?0:v>255?255:v; }
+  return m;
+}
+/* làm sạch mặt nạ: bỏ bóng ma mờ, bỏ mảnh vụn, bỏ mảnh nhỏ nằm trong vùng tiêu đề khung cũ */
+function maskClean(m,w,h,opt){
+  opt=opt||{}; const lo=opt.lo==null?12:opt.lo, headTop=opt.headTop==null?0.2:opt.headTop;
+  for(let i=0;i<m.length;i++)if(m[i]<lo)m[i]=0;
+  const lab=new Int32Array(w*h).fill(-1), st=new Int32Array(w*h), comps=[];
+  for(let p0=0;p0<w*h;p0++){
+    if(m[p0]<128||lab[p0]>=0)continue;
+    const id=comps.length; let sp=0; st[sp++]=p0; lab[p0]=id; let area=0,y0=h,y1=0;
+    while(sp){ const p=st[--sp], y=(p/w)|0, x=p-y*w; area++; if(y<y0)y0=y; if(y>y1)y1=y;
+      for(let dy=-1;dy<=1;dy++){ const ny=y+dy; if(ny<0||ny>=h)continue;
+        for(let dx=-1;dx<=1;dx++){ const nx=x+dx; if(nx<0||nx>=w)continue; const q=ny*w+nx; if(m[q]>=128&&lab[q]<0){lab[q]=id;st[sp++]=q;} } } }
+    comps.push({area,y0,y1});
+  }
+  if(!comps.length)return {kept:0,dropped:0};
+  const big=Math.max(...comps.map(c=>c.area));
+  const drop=comps.map(c=> c.area<big*0.015 || (c.y1<h*headTop && c.area<big*0.25));
+  let dropped=0; drop.forEach(d=>{ if(d)dropped++; });
+  if(dropped){
+    // xoá cả vùng mờ quanh mảnh bị bỏ: loang từ điểm lõi ra các điểm mờ lân cận
+    const kill=new Uint8Array(w*h); let sp=0;
+    for(let p=0;p<w*h;p++){ if(lab[p]>=0&&drop[lab[p]]){ kill[p]=1; st[sp++]=p; } }
+    while(sp){ const p=st[--sp], y=(p/w)|0, x=p-y*w;
+      for(let dy=-1;dy<=1;dy++){ const ny=y+dy; if(ny<0||ny>=h)continue;
+        for(let dx=-1;dx<=1;dx++){ const nx=x+dx; if(nx<0||nx>=w)continue; const q=ny*w+nx;
+          if(!kill[q]&&m[q]>0&&m[q]<128){ kill[q]=1; st[sp++]=q; } } } }
+    for(let p=0;p<w*h;p++)if(kill[p])m[p]=0;
+  }
+  return {kept:comps.length-dropped,dropped};
+}
+/* nền phẳng: màu nền = trung vị 4 góc; chỉ xoá phần nền LIỀN với mép ảnh (phần trắng trong lòng nón giữ lại) */
+function plainBgInfo(rgba,w,h){
+  const px=(x,y)=>{ const i=(y*w+x)*4; return [rgba[i],rgba[i+1],rgba[i+2]]; };
+  const cs=[px(0,0),px(w-1,0),px(0,h-1),px(w-1,h-1)];
+  const med=k=>{ const a=cs.map(c=>c[k]).sort((a,b)=>a-b); return (a[1]+a[2])/2; };
+  const bg=[med(0),med(1),med(2)];
+  let ok=0,tot=0; const step=Math.max(1,Math.floor((w+h)/400));
+  const near=(c)=>Math.max(Math.abs(c[0]-bg[0]),Math.abs(c[1]-bg[1]),Math.abs(c[2]-bg[2]))<=14;
+  for(let x=0;x<w;x+=step){ tot+=2; if(near(px(x,0)))ok++; if(near(px(x,h-1)))ok++; }
+  for(let y=0;y<h;y+=step){ tot+=2; if(near(px(0,y)))ok++; if(near(px(w-1,y)))ok++; }
+  return {bg,ratio:ok/tot,plain:ok/tot>=0.92};
+}
+function colorKeyMask(rgba,w,h,bg){
+  const n=w*h, m=new Uint8Array(n).fill(255), dist=new Uint8Array(n);
+  for(let p=0,i=0;p<n;p++,i+=4){ const d=Math.max(Math.abs(rgba[i]-bg[0]),Math.abs(rgba[i+1]-bg[1]),Math.abs(rgba[i+2]-bg[2])); dist[p]=d>255?255:d; }
+  const T0=10,T1=34, seen=new Uint8Array(n), st=new Int32Array(n); let sp=0;
+  const push=p=>{ if(!seen[p]&&dist[p]<T1){ seen[p]=1; st[sp++]=p; } };
+  for(let x=0;x<w;x++){ push(x); push((h-1)*w+x); }
+  for(let y=0;y<h;y++){ push(y*w); push(y*w+w-1); }
+  while(sp){ const p=st[--sp], y=(p/w)|0, x=p-y*w;
+    const d=dist[p]; m[p]=d<=T0?0:Math.round((d-T0)/(T1-T0)*255);
+    if(d>T0)continue;                        // điểm chuyển tiếp: giữ độ mờ, không loang tiếp
+    if(x>0)push(p-1); if(x<w-1)push(p+1); if(y>0)push(p-w); if(y<h-1)push(p+w); }
+  return m;
+}
+
+/* ---- bộ nhớ tạm (IndexedDB): ảnh gốc + ảnh tách nền theo link → mở lại tab chạy tiếp, không tải lại ---- */
+const XDB={db:null};
+function xdbOpen(){
+  if(XDB.db)return Promise.resolve(XDB.db);
+  return new Promise((res,rej)=>{ let rq; try{ rq=indexedDB.open('ns-anhshopee',1); }catch(e){ rej(e); return; }
+    rq.onupgradeneeded=()=>{ rq.result.createObjectStore('shopee'); };
+    rq.onsuccess=()=>{ XDB.db=rq.result; res(XDB.db); }; rq.onerror=()=>rej(rq.error); });
+}
+async function xdbGet(k){ try{ const db=await xdbOpen(); return await new Promise(res=>{ const r=db.transaction('shopee').objectStore('shopee').get(k); r.onsuccess=()=>res(r.result||null); r.onerror=()=>res(null); }); }catch(e){ return null; } }
+async function xdbPut(k,v){ try{ const db=await xdbOpen(); await new Promise(res=>{ const tx=db.transaction('shopee','readwrite'); tx.objectStore('shopee').put(v,k); tx.oncomplete=res; tx.onerror=res; tx.onabort=res; }); }catch(e){} }
+async function xdbClear(){ try{ const db=await xdbOpen(); await new Promise(res=>{ const tx=db.transaction('shopee','readwrite'); tx.objectStore('shopee').clear(); tx.oncomplete=res; tx.onerror=res; }); }catch(e){} }
+
+/* ---- AI tách nền: ISNet (Apache-2.0) chạy bằng onnxruntime-web — WebGPU nếu có, không thì WASM ---- */
+const ORT_VER='1.30.0', ORT_CDN='https://cdn.jsdelivr.net/npm/onnxruntime-web@'+ORT_VER+'/dist/';
+const AI={session:null,loading:null,ep:'',threads:1,prog:0,err:''};
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.crossOrigin='anonymous'; s.onload=res; s.onerror=()=>rej(new Error('Không tải được thư viện AI — lần đầu cần có mạng')); document.head.appendChild(s); }); }
+async function fetchModel(onProg){
+  if(location.protocol==='file:')throw new Error('AI chỉ chạy khi mở app qua link GitHub Pages, không chạy khi mở file trực tiếp');
+  let man; try{ const r=await fetch('./models/isnet.json',{cache:'no-cache'}); if(!r.ok)throw 0; man=await r.json(); }
+  catch(e){ throw new Error('Chưa có thư mục models/ trên repo — đưa bộ model lên gốc repo rồi thử lại'); }
+  const total=man.size; let got=0; const parts=[];
+  for(const p of man.parts){
+    const r=await fetch('./models/'+p.name); if(!r.ok)throw new Error('Thiếu file model '+p.name+' (HTTP '+r.status+')');
+    if(r.body&&r.body.getReader){ const rd=r.body.getReader(), ch=[]; for(;;){ const {done,value}=await rd.read(); if(done)break; ch.push(value); got+=value.length; onProg&&onProg(got,total); } parts.push(new Blob(ch)); }
+    else { const b=await r.blob(); got+=b.size; onProg&&onProg(got,total); parts.push(b); }
+  }
+  const buf=new Uint8Array(await new Blob(parts).arrayBuffer());
+  if(buf.length!==total)throw new Error('Model tải thiếu ('+buf.length+'/'+total+' byte) — tải lại trang rồi thử lại');
+  return buf;
+}
+async function getSession(onProg){
+  if(AI.session)return AI.session;
+  if(AI.loading)return AI.loading;
+  AI.loading=(async()=>{
+    if(!window.ort)await loadScript(ORT_CDN+'ort.webgpu.min.js');
+    const O=window.ort;
+    O.env.wasm.wasmPaths=ORT_CDN;
+    AI.threads=self.crossOriginIsolated?Math.max(1,Math.min(8,(navigator.hardwareConcurrency||4)-1)):1;
+    O.env.wasm.numThreads=AI.threads;
+    const model=await fetchModel(onProg);
+    const eps=[];
+    if(navigator.gpu){ try{ if(await navigator.gpu.requestAdapter())eps.push('webgpu'); }catch(e){} }
+    eps.push('wasm');
+    let last=null;
+    for(const ep of eps){
+      try{
+        const s=await O.InferenceSession.create(model,{executionProviders:[ep],graphOptimizationLevel:'all'});
+        if(ep==='webgpu'){   // chạy thử 1 lần: một số card nhận WebGPU nhưng chạy lỗi -> rơi về WASM
+          const z=new O.Tensor('float32',new Float32Array(3*ISN*ISN),[1,3,ISN,ISN]);
+          const o=await s.run({[s.inputNames[0]]:z}); const t=o[s.outputNames[0]]; t&&t.dispose&&t.dispose();
+        }
+        AI.session=s; AI.ep=ep; return s;
+      }catch(e){ last=e; }
+    }
+    throw last||new Error('Không khởi động được AI');
+  })();
+  try{ return await AI.loading; }catch(e){ AI.err=e.message||String(e); throw e; }finally{ AI.loading=null; }
+}
+function aiLabel(){ return !AI.ep?'':AI.ep==='webgpu'?'AI: WebGPU (card đồ hoạ)':'AI: CPU · '+AI.threads+' luồng'; }
+
+/* ảnh -> PNG trong suốt. mode: auto | ai | plain | none */
+async function cutoutBlob(blob,mode,onProg){
+  if(mode==='none')return {blob,method:'none'};
+  const bmp=await createImageBitmap(blob); const w=bmp.width,h=bmp.height;
+  try{
+    const c=makeCanvas(w,h), ctx=c.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(bmp,0,0);
+    let method=mode, mask, mw, mh;
+    if(mode!=='ai'){
+      const full=ctx.getImageData(0,0,w,h).data, info=plainBgInfo(full,w,h);
+      if(mode==='plain'||info.plain){
+        mask=colorKeyMask(full,w,h,info.bg); mw=w; mh=h; method='plain';
+        if(mode==='auto'){   // sản phẩm quá sát màu nền (nón trắng/kem trên nền trắng) -> để AI làm cho chắc
+          let sum=0,cnt=0,near=0; const bg=info.bg;
+          for(let p=0,i=0;p<mask.length;p+=3,i+=12){ if(mask[p]<200)continue; const d=Math.max(Math.abs(full[i]-bg[0]),Math.abs(full[i+1]-bg[1]),Math.abs(full[i+2]-bg[2])); sum+=d; cnt++; if(d<48)near++; }
+          if(!cnt||near/cnt>0.35||sum/cnt<60)method='ai';
+        }
+      }
+      else method='ai';
+    }
+    if(method==='ai'){
+      const s=await getSession(onProg), O=window.ort;
+      const t=makeCanvas(ISN,ISN), tc=t.getContext('2d',{willReadFrequently:true});
+      tc.imageSmoothingEnabled=true; tc.imageSmoothingQuality='high'; tc.drawImage(bmp,0,0,ISN,ISN);
+      const x=new O.Tensor('float32',isnetPre(tc.getImageData(0,0,ISN,ISN).data),[1,3,ISN,ISN]);
+      const r=await s.run({[s.inputNames[0]]:x}); const out=r[s.outputNames[0]];
+      mask=isnetPost(out.data); out.dispose&&out.dispose(); mw=mh=ISN;
+    }
+    maskClean(mask,mw,mh);
+    const mc=makeCanvas(mw,mh), mx=mc.getContext('2d'), id=mx.createImageData(mw,mh);
+    for(let i=0;i<mask.length;i++)id.data[i*4+3]=mask[i];
+    mx.putImageData(id,0,0);
+    ctx.globalCompositeOperation='destination-in'; ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.drawImage(mc,0,0,w,h); ctx.globalCompositeOperation='source-over';
+    return {blob:await canvasBlob(c,'image/png'),method};
+  }finally{ bmp.close&&bmp.close(); }
+}
+
+/* ---- tải ảnh Shopee: thử tải thẳng; bị chặn thì qua proxy Google Apps Script ---- */
+const XL={det:null,file:'',jobs:[],urls:new Map(),running:false,paused:false,mode:'auto',keep:'on',conn:'',dlDone:0,cutDone:0,fail:0,cutMs:[],timer:null,pending:[],skuCol:-1,pos:new Set(),modelTxt:''};
+function proxyUrl(){ try{ return (localStorage.getItem('ns_shopee_proxy')||'').trim(); }catch(e){ return ''; } }
+function setProxyUrl(v){ try{ localStorage.setItem('ns_shopee_proxy',(v||'').trim()); }catch(e){} }
+async function fetchDirect(u){
+  const r=await fetch(u,{mode:'cors',credentials:'omit'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const b=await r.blob(); if(b.size<200)throw new Error('ảnh rỗng');
+  return b;
+}
+async function fetchProxy(list){
+  const p=proxyUrl(); if(!p)throw new Error('chưa cài proxy');
+  const r=await fetch(p+(p.indexOf('?')>=0?'&':'?')+'u='+encodeURIComponent(list.join('|')),{credentials:'omit'});
+  if(!r.ok)throw new Error('proxy HTTP '+r.status);
+  const arr=await r.json(), out={};
+  for(const it of arr){
+    if(it&&it.ok){ const bin=atob(it.b64), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i); out[it.u]=new Blob([u8],{type:it.mime||'image/jpeg'}); }
+    else if(it)out[it.u]=new Error(it.err||'proxy lỗi');
+  }
+  return out;
+}
+async function probeConn(u){
+  try{ await fetchDirect(u); return 'direct'; }
+  catch(e){
+    if(!proxyUrl())return 'blocked';
+    try{ const o=await fetchProxy([u]); return o[u] instanceof Blob?'proxy':'fail-proxy'; }catch(e2){ return 'fail-proxy'; }
+  }
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function waitPause(){ while(XL.paused&&XL.running)await sleep(250); }
+
+/* ---- điều phối: tải (song song) + tách nền (tuần tự) chạy cùng lúc ---- */
+function xlFlush(){
+  if(!XL.pending.length)return;
+  const items=XL.pending.splice(0); addImages(items,{silent:true});
+}
+function xlEmit(rec){
+  for(const j of rec.jobs){
+    const nm=j.rel.split('/').pop();
+    const f=new File([rec.cut],nm.replace(/\.jpg$/i,rec.method==='none'?'.jpg':'.png'),{type:rec.cut.type||'image/png'});
+    XL.pending.push({file:f,relpath:j.rel,meta:{src:'xlsx',srcUrl:rec.url,sku:j.sku,pos:j.pos,cutMethod:rec.method,beforeUrl:rec.beforeUrl}});
+    j.status='xong'; j.method=rec.method;
+  }
+  if(XL.pending.length>=40)xlFlush();
+}
+async function xlRun(){
+  XL.running=true; XL.paused=false; XL.fail=0;
+  const recs=[...XL.urls.values()];
+  for(const r of recs)if(r.st==='dang-tach')r.st=r.orig?'da-tai':'cho';
+  const todo=recs.filter(r=>r.st!=='xong');
+  xlUi();
+  if(!XL.timer)XL.timer=setInterval(()=>{ xlFlush(); xlUi(); },1200);
+  // 1) nạp từ bộ nhớ tạm
+  for(const r of todo){
+    if(r.st==='xong')continue;
+    const c=await xdbGet(r.url);
+    if(c&&c.orig&&!r.orig){ r.orig=c.orig; r.beforeUrl=r.beforeUrl||URL.createObjectURL(c.orig); if(r.st==='cho'||r.st==='loi')r.st='da-tai'; }
+    if(c&&c.cut&&(c.method===XL.mode||(XL.mode==='auto'&&(c.method==='ai'||c.method==='plain')))){ r.cut=c.cut; r.method=c.method; r.st='xong'; XL.cutDone++; xlEmit(r); }
+  }
+  XL.dlDone=recs.filter(r=>r.orig).length;
+  // 2) kiểm tra kết nối nếu còn ảnh phải tải
+  const need=recs.filter(r=>!r.orig);
+  if(need.length&&!XL.conn){
+    xlMsg('Đang kiểm tra kết nối Shopee…');
+    const m=await probeConn(need[0].url);
+    if(m==='blocked'||m==='fail-proxy'){
+      XL.running=false; xlUi();
+      $('#xlAdv').open=true;
+      xlMsg(m==='blocked'?'<b>Shopee chặn tải thẳng từ trình duyệt.</b> Cài proxy Google Apps Script (file proxy-shopee.gs), dán link vào mục "Kết nối Shopee" rồi bấm lại <b>Tiếp tục</b>.'
+                         :'<b>Proxy không trả được ảnh.</b> Kiểm tra lại link web app (quyền truy cập: Bất kỳ ai) rồi bấm <b>Tiếp tục</b>.',true);
+      return;
+    }
+    XL.conn=m;
+  }
+  xlMsg('');
+  // 3) tải song song
+  const dlQ=recs.filter(r=>!r.orig);
+  let dlIdx=0;
+  const dlOne=async(r)=>{
+    let err=null;
+    for(let a=0;a<3;a++){
+      try{
+        const b=XL.conn==='proxy'?(await fetchProxy([r.url]))[r.url]:await fetchDirect(r.url);
+        if(b instanceof Error)throw b;
+        r.orig=b; r.beforeUrl=URL.createObjectURL(b); r.st='da-tai'; XL.dlDone++;
+        xdbPut(r.url,{orig:b}); return;
+      }catch(e){ err=e; await sleep([1000,3000,9000][a]); }
+    }
+    r.st='loi'; r.err='tải: '+(err&&err.message||err); XL.fail++;
+  };
+  const dlWorker=async()=>{
+    while(XL.running){
+      await waitPause(); if(!XL.running)return;
+      if(XL.conn==='proxy'){
+        const batch=[]; while(dlIdx<dlQ.length&&batch.length<6)batch.push(dlQ[dlIdx++]);
+        if(!batch.length)return;
+        try{
+          const o=await fetchProxy(batch.map(r=>r.url));
+          for(const r of batch){ const b=o[r.url]; if(b instanceof Blob){ r.orig=b; r.beforeUrl=URL.createObjectURL(b); r.st='da-tai'; XL.dlDone++; xdbPut(r.url,{orig:b}); } else await dlOne(r); }
+        }catch(e){ for(const r of batch)await dlOne(r); }
+      }else{
+        if(dlIdx>=dlQ.length)return;
+        await dlOne(dlQ[dlIdx++]);
+      }
+    }
+  };
+  // 4) tách nền tuần tự (AI dùng chung 1 phiên)
+  const cutWorker=async()=>{
+    while(XL.running){
+      await waitPause(); if(!XL.running)return;
+      const r=recs.find(x=>x.st==='da-tai');
+      if(!r){ if(dlIdx>=dlQ.length&&dlBusy===0)return; await sleep(200); continue; }
+      r.st='dang-tach';
+      const t=performance.now();
+      try{
+        const o=await cutoutBlob(r.orig,XL.mode,(g,tt)=>{ XL.modelTxt='Đang tải model AI '+Math.round(g/tt*100)+'% ('+Math.round(g/1048576)+'/'+Math.round(tt/1048576)+' MB)'; });
+        XL.modelTxt='';
+        r.cut=o.blob; r.method=o.method; r.st='xong'; XL.cutDone++;
+        if(o.method==='ai'){ XL.cutMs.push(performance.now()-t); if(XL.cutMs.length>20)XL.cutMs.shift(); }
+        if(o.method!=='none')xdbPut(r.url,{orig:r.orig,cut:o.blob,method:o.method});
+        xlEmit(r);
+      }catch(e){
+        XL.modelTxt='';
+        r.st='loi'; r.err='tách nền: '+(e&&e.message||e); XL.fail++;
+        if(/models\/|GitHub Pages|thư viện AI/.test(r.err)){ xlMsg('<b>Không khởi động được AI.</b> '+e.message,true); XL.running=false; }
+      }
+      await sleep(0);
+    }
+  };
+  let dlBusy=0;
+  const nDl=XL.conn==='proxy'?3:6;
+  const dls=Array.from({length:nDl},()=>{ dlBusy++; return dlWorker().finally(()=>{ dlBusy--; }); });
+  await Promise.all([...dls,cutWorker()]);
+  xlFlush();
+  const wasRunning=XL.running; XL.running=false;
+  xlUi();
+  if(wasRunning){
+    const ok=recs.filter(r=>r.st==='xong').length, bad=recs.filter(r=>r.st==='loi').length;
+    toast('Excel: xong '+ok+' ảnh'+(bad?' · lỗi '+bad:''),bad>0);
+  }
+}
+
+/* ---- báo cáo CSV (mở thẳng bằng Excel) ---- */
+function xlCsv(){
+  const q=v=>{ v=v==null?'':String(v); return /[",\n;]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const lines=[['Mã SP','SKU','Vị trí','Cột','Link gốc','Tên file xuất','Trạng thái','Cách tách','Lỗi'].join(',')];
+  for(const j of XL.jobs){
+    const r=XL.urls.get(j.url)||{};
+    const st=r.st==='xong'?'Xong':r.st==='loi'?'Lỗi':'Chưa xong';
+    const me=r.method==='ai'?'AI':r.method==='plain'?'Nền phẳng':r.method==='none'?'Không tách':'';
+    lines.push([j.id,j.sku,j.pos===0?'Ảnh bìa':'Hình '+j.pos,j.posLabel,j.url,j.rel,st,me,r.err||''].map(q).join(','));
+  }
+  return new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+}
+function xlCsvDownload(){
+  if(!XL.jobs.length){ toast('Chưa có dữ liệu Excel',true); return; }
+  const url=URL.createObjectURL(xlCsv()), a=document.createElement('a');
+  a.href=url; a.download='bao-cao-excel_'+new Date().toISOString().slice(0,10)+'.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+/* file kèm theo khi xuất: PNG tách nền + báo cáo */
+function xlExtraEntries(done){
+  const out=[];
+  if(XL.keep==='on'){
+    for(const i of done){
+      if(i.src!=='xlsx'||!i.cutMethod||i.cutMethod==='none')continue;
+      const rp=i.relpath, sl=rp.lastIndexOf('/'), dir=sl>=0?rp.slice(0,sl+1):'', base=(sl>=0?rp.slice(sl+1):rp).replace(/\.[^.]+$/,'');
+      out.push({name:dir+'goc-tach-nen/'+base+'.png',blob:i.file});
+    }
+  }
+  if(XL.jobs.length&&done.some(i=>i.src==='xlsx'))out.push({name:'bao-cao-excel.csv',blob:xlCsv()});
+  return out;
+}
+
+/* ---- giao diện bảng nhập ---- */
+function xlMsg(html,warn){ const el=$('#xlModeNote'); if(!el)return; if(!html){ xlModeNote(); return; } el.innerHTML=html; el.classList.toggle('warn',!!warn); }
+function xlModeNote(){
+  const el=$('#xlModeNote'); if(!el)return;
+  const txt={
+    auto:'<b>Tự động</b> — ảnh nền trắng trơn tách theo màu (tức thì); ảnh có khung/watermark dùng AI ISNet chạy ngay trong trình duyệt, không gửi ảnh ra ngoài.',
+    ai:'<b>AI cho tất cả</b> — chắc chắn nhất, chậm nhất.',
+    plain:'<b>Nền phẳng</b> — chỉ đúng với ảnh chụp nền trắng trơn; ảnh còn khung cũ sẽ tách sai.',
+    none:'<b>Không tách</b> — giữ nguyên ảnh tải về (vẫn còn khung cũ).'
+  }[XL.mode];
+  let warn='';
+  if(XL.mode==='auto'||XL.mode==='ai'){
+    if(location.protocol==='file:')warn='<br><b>AI không chạy khi mở file trực tiếp</b> — mở app qua link GitHub Pages.';
+    else if(!navigator.gpu)warn='<br><b>Trình duyệt này không có WebGPU</b> → AI chạy bằng CPU, chậm (cỡ 10–15 giây/ảnh). Nên dùng Chrome/Edge trên máy tính.';
+  }
+  el.innerHTML=txt+warn; el.classList.toggle('warn',!!warn);
+}
+function xlSetStep(n,done){ [1,2,3].forEach(k=>{ const e=$('#xs'+k); e.classList.toggle('on',k===n); e.classList.toggle('done',done?k<=n:k<n); }); }
+function xlPosLabel(l){ const s=String(l); if(/bìa/i.test(s))return 'Ảnh bìa'; const m=/(\d+)\s*$/.exec(s); return m?'Hình '+m[1]:s.slice(0,14); }
+function xlRecount(){
+  if(!XL.det)return;
+  XL.jobs=xlsxJobs(XL.det,{positions:[...XL.pos],skuCol:XL.skuCol,filter:$('#xlFilter').value});
+  const u=new Set(XL.jobs.map(j=>j.url)).size, sk=new Set(XL.jobs.map(j=>j.sku)).size;
+  $('#xlSum').innerHTML=XL.jobs.length?('Sẽ xử lý <b>'+XL.jobs.length+'</b> ảnh của <b>'+sk+'</b> mã · <b>'+u+'</b> link cần tải'):'Không có ảnh nào khớp bộ lọc';
+  $('#xlStart').disabled=!XL.jobs.length;
+}
+async function xlOpenFile(file){
+  try{
+    const buf=await file.arrayBuffer();
+    const x=await xlsxRead(buf), d=xlsxDetect(x.rows);
+    if(!d.imgCols.length){ toast('Không thấy cột nào chứa link ảnh trong file',true); return; }
+    XL.det=d; XL.file=file.name; XL.skuCol=d.skuCol>=0?d.skuCol:0; XL.pos=new Set(d.imgCols.map((c,k)=>k));
+    const all=xlsxJobs(d,{positions:[...XL.pos],skuCol:XL.skuCol});
+    const uq=new Set(all.map(j=>j.url)).size;
+    $('#xlStP').textContent=d.data.length; $('#xlStL').textContent=all.length; $('#xlStD').textContent=all.length-uq;
+    const opts=[]; for(let c=0;c<d.ncol;c++){ if(d.imgCols.some(x=>x.c===c))continue; if(d.headers[c])opts.push({v:c,label:colName(c)+' · '+d.headers[c]}); }
+    Sel($('#xlSku'),opts,()=>XL.skuCol,v=>{ XL.skuCol=v; xlRecount(); });
+    const host=$('#xlPos'); host.innerHTML='';
+    d.imgCols.forEach((col,k)=>{
+      const b=document.createElement('button'); b.className='xl-pc on'; b.innerHTML=xlPosLabel(col.label)+' <em>'+col.count+'</em>';
+      b.onclick=()=>{ if(XL.pos.has(k))XL.pos.delete(k); else XL.pos.add(k); b.classList.toggle('on',XL.pos.has(k)); xlRecount(); };
+      host.appendChild(b);
+    });
+    $('#xlCfg').insertBefore($('#xlModeNote'),$('#xlKeep').closest('.field'));
+    $('#xlDrop').classList.add('hidden'); $('#xlCfg').classList.remove('hidden'); $('#xlRun').classList.add('hidden');
+    xlSetStep(1); xlModeNote(); xlRecount();
+  }catch(e){ toast('Không đọc được Excel: '+(e.message||e),true); }
+}
+function xlStartRun(){
+  if(XL.running)return;
+  xlRecount(); if(!XL.jobs.length)return;
+  XL.urls=new Map(); XL.dlDone=0; XL.cutDone=0; XL.cutMs=[];
+  for(const j of XL.jobs){ let r=XL.urls.get(j.url); if(!r){ r={url:j.url,jobs:[],st:'cho',orig:null,cut:null,method:'',err:'',beforeUrl:''}; XL.urls.set(j.url,r); } r.jobs.push(j); }
+  $('#xlCfg').classList.add('hidden'); $('#xlRun').classList.remove('hidden');
+  // ghi chú chế độ hiện ngay trên khung chạy
+  $('#xlRun').insertBefore($('#xlModeNote'),$('#xlRun').firstChild);
+  xlRun();
+}
+function xlUi(){
+  if(!XL.urls.size)return;
+  const recs=[...XL.urls.values()], n=recs.length;
+  const dl=recs.filter(r=>r.orig).length, cut=recs.filter(r=>r.st==='xong').length, bad=recs.filter(r=>r.st==='loi');
+  const pd=Math.round(dl/n*100), pc=Math.round(cut/n*100);
+  $('#xlDlTxt').textContent=dl+' / '+n; $('#xlDlBar').style.width=pd+'%'; $('#xlDlPct').textContent=pd+'%';
+  $('#xlCutTxt').textContent=cut+' / '+n; $('#xlCutBar').style.width=pc+'%'; $('#xlCutPct').textContent=pc+'%';
+  const allDone=cut+bad.length>=n;
+  xlSetStep(dl+bad.filter(r=>!r.orig).length<n?2:3, allDone&&!XL.running);
+  const chips=[];
+  if(XL.conn)chips.push('<span class="chip">'+(XL.conn==='proxy'?'Tải qua proxy':'Tải thẳng từ Shopee')+'</span>');
+  if(AI.ep)chips.push('<span class="chip">'+aiLabel()+'</span>');
+  if(XL.modelTxt)chips.push('<span class="chip warn">'+XL.modelTxt+'</span>');
+  if(XL.cutMs.length){ const avg=XL.cutMs.reduce((a,b)=>a+b,0)/XL.cutMs.length, left=recs.filter(r=>r.st!=='xong'&&r.st!=='loi').length;
+    chips.push('<span class="chip">'+(avg/1000).toFixed(1)+' giây/ảnh AI</span>');
+    if(XL.running&&left)chips.push('<span class="chip">còn khoảng '+Math.max(1,Math.round(avg*left/60000))+' phút</span>'); }
+  if(bad.length)chips.push('<span class="chip warn">'+bad.length+' lỗi</span>');
+  if(!XL.running&&allDone)chips.push('<span class="chip">Đã đưa '+cut+' link vào lưới — bấm Chạy toàn bộ để ghép khung</span>');
+  $('#xlMeta').innerHTML=chips.join('');
+  $('#xlErrs').innerHTML=bad.slice(0,60).map(r=>r.jobs[0].sku+' · '+xlPosLabel(r.jobs[0].posLabel)+' — '+r.err).join('<br>');
+  $('#xlRetry').disabled=XL.running||!bad.length;
+  $('#xlPause').textContent=!XL.running?'Tiếp tục':XL.paused?'Tiếp tục':'Tạm dừng';
+  $('#xlPause').disabled=!XL.running&&allDone&&!bad.length;
+  if(!XL.running&&XL.timer){ clearInterval(XL.timer); XL.timer=null; }
+}
+function xlWire(){
+  const open=()=>{ $('#xlBg').classList.add('show'); if(!XL.det){ xlSetStep(1); } };
+  $('#btnExcel').onclick=open; const pe=$('#btnPickExcel'); if(pe)pe.onclick=open;
+  $('#xlClose').onclick=()=>$('#xlBg').classList.remove('show');
+  $('#xlHide').onclick=()=>$('#xlBg').classList.remove('show');
+  $('#xlBg').addEventListener('click',e=>{ if(e.target===$('#xlBg')&&!XL.running)$('#xlBg').classList.remove('show'); });
+  const dz=$('#xlDrop');
+  dz.onclick=()=>$('#xlInput').click();
+  $('#xlInput').onchange=e=>{ const f=e.target.files&&e.target.files[0]; if(f)xlOpenFile(f); e.target.value=''; };
+  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); e.stopPropagation(); dz.classList.add('over'); }));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{ e.preventDefault(); e.stopPropagation(); dz.classList.remove('over'); }));
+  dz.addEventListener('drop',e=>{ const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f)xlOpenFile(f); });
+  $('#xlFilter').oninput=xlRecount;
+  Seg($('#xlMode'),[{v:'auto',label:'Tự động'},{v:'ai',label:'AI tất cả'},{v:'plain',label:'Nền phẳng'},{v:'none',label:'Không tách'}],()=>XL.mode,v=>{ XL.mode=v; xlModeNote(); });
+  Seg($('#xlKeep'),[{v:'on',label:'Có'},{v:'off',label:'Không'}],()=>XL.keep,v=>{ XL.keep=v; });
+  $('#xlProxy').value=proxyUrl();
+  $('#xlProxy').onchange=()=>{ setProxyUrl($('#xlProxy').value); XL.conn=''; };
+  $('#xlTest').onclick=async()=>{
+    setProxyUrl($('#xlProxy').value); XL.conn='';
+    const u=XL.jobs[0]?XL.jobs[0].url:(XL.det&&XL.det.data[0]?XL.det.data[0].cells[XL.det.imgCols[0].c]:'');
+    if(!u){ toast('Nạp file Excel trước để có link thử',true); return; }
+    $('#xlConn').textContent='đang thử…';
+    const m=await probeConn(u);
+    $('#xlConn').textContent={direct:'tải thẳng được',proxy:'qua proxy được',blocked:'Shopee chặn — cần proxy','fail-proxy':'proxy lỗi'}[m];
+    toast($('#xlConn').textContent,m==='blocked'||m==='fail-proxy');
+  };
+  $('#xlStart').onclick=xlStartRun;
+  $('#xlPause').onclick=()=>{
+    if(XL.running){ XL.paused=!XL.paused; xlUi(); return; }
+    xlRun();
+  };
+  $('#xlRetry').onclick=()=>{ for(const r of XL.urls.values())if(r.st==='loi'){ r.st=r.orig?'da-tai':'cho'; r.err=''; } xlRun(); };
+  $('#xlCsv').onclick=xlCsvDownload;
+  $('#xlNew').onclick=()=>{
+    if(XL.running){ toast('Đang chạy — tạm dừng hoặc đợi xong trước',true); return; }
+    XL.det=null; XL.urls=new Map(); XL.jobs=[];
+    $('#xlCfg').insertBefore($('#xlModeNote'),$('#xlKeep').closest('.field'));
+    $('#xlRun').classList.add('hidden'); $('#xlCfg').classList.add('hidden'); $('#xlDrop').classList.remove('hidden'); xlSetStep(1);
+  };
+}
+
+buildPanel(); updateFrameUI(); renderBgAssets(); renderGrid(); updateCounts(); wire(); initInstall(); xlWire();
 if(!('showDirectoryPicker' in window)){ /* folder-save unsupported: button will toast on click */ }
 })();
 </script>
