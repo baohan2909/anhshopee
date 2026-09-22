@@ -1,11 +1,12 @@
 /* NS · XỬ LÝ ẢNH — service worker
-   Tăng số phiên bản CACHE mỗi lần đổi index.html để trình duyệt tải bản mới.
-   Model AI + thư viện AI để ở cache RIÊNG, không bị xoá khi lên phiên bản. */
-const CACHE = 'ns-anh-v9';
+   - Tăng CACHE mỗi lần đổi index.html để máy nhận bản mới.
+   - Bộ AI (./ort, ./models) để ở cache RIÊNG, giữ qua mọi lần cập nhật app.
+   - CHỈ dọn cache của chính app này (tiền tố ns-anh-/ns-lib-) — không đụng cache của app khác
+     cùng địa chỉ baohan2909.github.io (PhotoFlow, sanpham…). */
+const CACHE = 'ns-anh-v10';
 const FONT_CACHE = 'ns-anh-fonts-v1';
-const MODEL_CACHE = 'ns-model-isnet-v1';
-const LIB_CACHE = 'ns-lib-ort-1.30.0';
-const KEEP = [CACHE, FONT_CACHE, MODEL_CACHE, LIB_CACHE];
+const AI_CACHE = 'ns-model-isnet-v1';
+const KEEP = [CACHE, FONT_CACHE, AI_CACHE];
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.png'];
 
 self.addEventListener('install', e => {
@@ -15,28 +16,21 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(ks => Promise.all(ks.filter(k => KEEP.indexOf(k) < 0 && k.indexOf('ns-model-') !== 0).map(k => caches.delete(k))))
+      .then(ks => Promise.all(ks
+        .filter(k => (k.indexOf('ns-anh-') === 0 || k.indexOf('ns-lib-') === 0) && KEEP.indexOf(k) < 0)
+        .map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
-/* Bật cách ly nguồn (COOP/COEP credentialless) cho trang -> Chrome cho AI chạy nhiều luồng CPU */
+/* Cách ly nguồn (COOP/COEP credentialless) -> Chrome cho AI chạy nhiều luồng CPU */
 function isolate(resp) {
-  if (!resp || resp.status !== 200 || resp.type === 'opaque') return resp;
+  if (!resp || resp.type === 'opaque' || resp.type === 'opaqueredirect' || resp.status === 0) return resp;
   const h = new Headers(resp.headers);
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
   h.set('Cross-Origin-Embedder-Policy', 'credentialless');
+  h.set('Cross-Origin-Resource-Policy', 'same-origin');
   return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers: h });
-}
-
-function cacheFirst(cacheName, req) {
-  return caches.open(cacheName).then(async c => {
-    const hit = await c.match(req);
-    if (hit) return hit;
-    const r = await fetch(req);
-    if (r && r.status === 200) c.put(req, r.clone());
-    return r;
-  });
 }
 
 self.addEventListener('fetch', e => {
@@ -54,27 +48,25 @@ self.addEventListener('fetch', e => {
     }));
     return;
   }
-
-  // Thư viện AI (onnxruntime-web, bản cố định) — cache-first, giữ lâu dài
-  if (url.hostname === 'cdn.jsdelivr.net' && url.pathname.indexOf('/onnxruntime-web@') >= 0) {
-    e.respondWith(cacheFirst(LIB_CACHE, req));
-    return;
-  }
-
   if (url.origin !== location.origin) return;
 
-  // Model AI (./models/...) — cache-first vào cache riêng, không bị xoá khi cập nhật app
-  if (url.pathname.indexOf('/models/') >= 0) {
-    if (url.pathname.slice(-5) === '.json') {   // mục lục model: ưu tiên mạng để nhận bản mới
-      e.respondWith(fetch(req).then(r => { if (r && r.status === 200) { const cp = r.clone(); caches.open(MODEL_CACHE).then(c => c.put(req, cp)); } return r; })
-        .catch(() => caches.open(MODEL_CACHE).then(c => c.match(req))));
-    } else {
-      e.respondWith(cacheFirst(MODEL_CACHE, req));
-    }
+  // Bộ AI: mục lục .json ưu tiên mạng (nhận bản mới); các phần model/thư viện lấy cache trước
+  if (url.pathname.indexOf('/models/') >= 0 || url.pathname.indexOf('/ort/') >= 0) {
+    e.respondWith(caches.open(AI_CACHE).then(async c => {
+      if (url.pathname.slice(-5) === '.json') {
+        try { const r = await fetch(req); if (r && r.status === 200) c.put(req, r.clone()); return isolate(r); }
+        catch (_) { return isolate(await c.match(req)) || Response.error(); }
+      }
+      const hit = await c.match(req);
+      if (hit) return isolate(hit);
+      const r = await fetch(req);
+      if (r && r.status === 200) c.put(req, r.clone());
+      return isolate(r);
+    }));
     return;
   }
 
-  // Trang chính — thêm header cách ly; ưu tiên cache, thiếu thì mạng
+  // Trang chính — ưu tiên mạng (luôn bản mới khi online), mất mạng thì dùng bản đã lưu
   if (req.mode === 'navigate') {
     e.respondWith(
       fetch(req).then(r => {
@@ -85,11 +77,11 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Tài nguyên cùng origin khác — cache-first
+  // Tài nguyên cùng nguồn khác — cache trước
   e.respondWith(
-    caches.match(req).then(hit => hit || fetch(req).then(r => {
+    caches.match(req).then(hit => hit ? isolate(hit) : fetch(req).then(r => {
       if (r && r.status === 200 && r.type === 'basic') { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); }
-      return r;
+      return isolate(r);
     }))
   );
 });

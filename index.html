@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  anhshopee — NS · XỬ LÝ ẢNH   v1.3
+  anhshopee — NS · XỬ LÝ ẢNH   v1.3.1
   Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT. Chạy 100% trong trình duyệt, không server.
   Chạy: bấm đúp file này (local), hoặc thả vào repo GitHub → GitHub Pages tự chạy.
 -->
@@ -1917,94 +1917,187 @@ async function xdbGet(k){ try{ const db=await xdbOpen(); return await new Promis
 async function xdbPut(k,v){ try{ const db=await xdbOpen(); await new Promise(res=>{ const tx=db.transaction('shopee','readwrite'); tx.objectStore('shopee').put(v,k); tx.oncomplete=res; tx.onerror=res; tx.onabort=res; }); }catch(e){} }
 async function xdbClear(){ try{ const db=await xdbOpen(); await new Promise(res=>{ const tx=db.transaction('shopee','readwrite'); tx.objectStore('shopee').clear(); tx.oncomplete=res; tx.onerror=res; }); }catch(e){} }
 
-/* ---- AI tách nền: ISNet (Apache-2.0) chạy bằng onnxruntime-web — WebGPU nếu có, không thì WASM ---- */
-const ORT_VER='1.30.0', ORT_CDN='https://cdn.jsdelivr.net/npm/onnxruntime-web@'+ORT_VER+'/dist/';
-const AI={session:null,loading:null,ep:'',threads:1,prog:0,err:''};
-function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.crossOrigin='anonymous'; s.onload=res; s.onerror=()=>rej(new Error('Không tải được thư viện AI — lần đầu cần có mạng')); document.head.appendChild(s); }); }
-async function fetchModel(onProg){
-  if(location.protocol==='file:')throw new Error('AI chỉ chạy khi mở app qua link GitHub Pages, không chạy khi mở file trực tiếp');
-  let man; try{ const r=await fetch('./models/isnet.json',{cache:'no-cache'}); if(!r.ok)throw 0; man=await r.json(); }
-  catch(e){ throw new Error('Chưa có thư mục models/ trên repo — đưa bộ model lên gốc repo rồi thử lại'); }
-  const total=man.size; let got=0; const parts=[];
-  for(const p of man.parts){
-    const r=await fetch('./models/'+p.name); if(!r.ok)throw new Error('Thiếu file model '+p.name+' (HTTP '+r.status+')');
-    if(r.body&&r.body.getReader){ const rd=r.body.getReader(), ch=[]; for(;;){ const {done,value}=await rd.read(); if(done)break; ch.push(value); got+=value.length; onProg&&onProg(got,total); } parts.push(new Blob(ch)); }
-    else { const b=await r.blob(); got+=b.size; onProg&&onProg(got,total); parts.push(b); }
+/* ---- AI tách nền: ISNet (Apache-2.0) chạy trong LUỒNG RIÊNG (Web Worker) ----
+   Có card đồ hoạ (WebGPU): model đầy đủ 171 MB. Không có: model nén 8-bit 44 MB chạy CPU nhiều luồng.
+   Thư viện + model nằm trong repo (./ort, ./models): cùng nguồn, chạy offline sau lần tải đầu. */
+const AI={ep:'',threads:0,err:'',caps:null};
+const PACKS={};
+async function fetchPack(man,onProg){
+  if(PACKS[man])return PACKS[man];
+  if(location.protocol==='file:')throw new Error('AI chỉ chạy khi mở app qua link GitHub Pages');
+  let m; try{ const r=await fetch(man,{cache:'no-cache'}); if(!r.ok)throw 0; m=await r.json(); }
+  catch(e){ throw new Error('Chưa có bộ AI trên repo (thiếu '+man.replace('./','')+') — đưa gói anhshopee-ai lên gốc repo'); }
+  const base=man.slice(0,man.lastIndexOf('/')+1), out=new Uint8Array(m.size); let got=0;
+  const put=v=>{ if(got+v.length>m.size)throw new Error('Gói '+man+' sai kích thước'); out.set(v,got); got+=v.length; onProg&&onProg(got,m.size,m.label); };
+  for(const p of m.parts){
+    const r=await fetch(base+p.name); if(!r.ok)throw new Error('Chưa có bộ AI trên repo (thiếu '+base.replace('./','')+p.name+')');
+    if(r.body&&r.body.getReader){ const rd=r.body.getReader(); for(;;){ const {done,value}=await rd.read(); if(done)break; put(value); } }
+    else put(new Uint8Array(await r.arrayBuffer()));
   }
-  const buf=new Uint8Array(await new Blob(parts).arrayBuffer());
-  if(buf.length!==total)throw new Error('Model tải thiếu ('+buf.length+'/'+total+' byte) — tải lại trang rồi thử lại');
-  return buf;
+  if(got!==m.size)throw new Error('Tải thiếu '+man+' ('+got+'/'+m.size+' byte) — tải lại trang rồi thử lại');
+  PACKS[man]=out.buffer; return out.buffer;
 }
-async function getSession(onProg){
-  if(AI.session)return AI.session;
-  if(AI.loading)return AI.loading;
-  AI.loading=(async()=>{
-    if(!window.ort)await loadScript(ORT_CDN+'ort.webgpu.min.js');
-    const O=window.ort;
-    O.env.wasm.wasmPaths=ORT_CDN;
-    AI.threads=self.crossOriginIsolated?Math.max(1,Math.min(8,(navigator.hardwareConcurrency||4)-1)):1;
-    O.env.wasm.numThreads=AI.threads;
-    const model=await fetchModel(onProg);
-    const eps=[];
-    if(navigator.gpu){ try{ if(await navigator.gpu.requestAdapter())eps.push('webgpu'); }catch(e){} }
-    eps.push('wasm');
-    let last=null;
-    for(const ep of eps){
+/* mã chạy TRONG luồng AI (được chuyển thành chuỗi) */
+function aiWorkerMain(){
+  let sess=null, aiWait=null, aiOk=null, pumping=false;
+  const Q=[], cv=(w,h)=>new OffscreenCanvas(w,h);
+  const post=(m)=>self.postMessage(m);
+  self.onmessage=async e=>{
+    const m=e.data;
+    if(m.type==='caps'){
+      let gpu=false; try{ if(self.navigator&&self.navigator.gpu)gpu=!!(await self.navigator.gpu.requestAdapter()); }catch(_){}
+      post({type:'caps',gpu,iso:!!self.crossOriginIsolated,cores:(self.navigator&&self.navigator.hardwareConcurrency)||4,oc:typeof OffscreenCanvas!=='undefined'});
+    }else if(m.type==='init'){
       try{
-        const s=await O.InferenceSession.create(model,{executionProviders:[ep],graphOptimizationLevel:'all'});
-        if(ep==='webgpu'){   // chạy thử 1 lần: một số card nhận WebGPU nhưng chạy lỗi -> rơi về WASM
-          const z=new O.Tensor('float32',new Float32Array(3*ISN*ISN),[1,3,ISN,ISN]);
-          const o=await s.run({[s.inputNames[0]]:z}); const t=o[s.outputNames[0]]; t&&t.dispose&&t.dispose();
-        }
-        AI.session=s; AI.ep=ep; return s;
-      }catch(e){ last=e; }
-    }
-    throw last||new Error('Không khởi động được AI');
-  })();
-  try{ return await AI.loading; }catch(e){ AI.err=e.message||String(e); throw e; }finally{ AI.loading=null; }
-}
-function aiLabel(){ return !AI.ep?'':AI.ep==='webgpu'?'AI: WebGPU (card đồ hoạ)':'AI: CPU · '+AI.threads+' luồng'; }
-
-/* ảnh -> PNG trong suốt. mode: auto | ai | plain | none */
-async function cutoutBlob(blob,mode,onProg){
-  if(mode==='none')return {blob,method:'none'};
-  const bmp=await createImageBitmap(blob); const w=bmp.width,h=bmp.height;
-  try{
-    const c=makeCanvas(w,h), ctx=c.getContext('2d',{willReadFrequently:true});
-    ctx.drawImage(bmp,0,0);
-    let method=mode, mask, mw, mh;
-    if(mode!=='ai'){
+        if(!self.ort)importScripts(m.ortJs);
+        const O=self.ort;
+        O.env.logLevel='error';
+        O.env.wasm.wasmPaths={mjs:m.mjs}; O.env.wasm.wasmBinary=m.wasm; O.env.wasm.numThreads=m.threads; O.env.wasm.initTimeout=30000;
+        const s=await O.InferenceSession.create(new Uint8Array(m.model),{executionProviders:[m.ep],graphOptimizationLevel:'all'});
+        const z=new O.Tensor('float32',new Float32Array(3*ISN*ISN),[1,3,ISN,ISN]);     // chạy thử 1 lần cho chắc
+        const o=await s.run({[s.inputNames[0]]:z}); const t=o[s.outputNames[0]]; t&&t.dispose&&t.dispose();
+        sess=s; post({type:'ai-ready',ep:m.ep,threads:m.threads}); aiOk&&aiOk();
+      }catch(err){ post({type:'ai-fail',err:String(err&&err.message||err)}); }
+    }else if(m.type==='job'){ Q.push(m); pump(); }
+  };
+  function needAI(){
+    if(sess)return Promise.resolve();
+    if(!aiWait){ aiWait=new Promise(r=>{ aiOk=r; }); post({type:'need-ai'}); }
+    return aiWait;
+  }
+  async function prepare(job){
+    const bmp=await createImageBitmap(job.blob); const w=bmp.width,h=bmp.height;
+    const c=cv(w,h), ctx=c.getContext('2d',{willReadFrequently:true}); ctx.drawImage(bmp,0,0);
+    let method=job.mode, mask=null, mw=w, mh=h, x=null;
+    if(job.mode!=='ai'){
       const full=ctx.getImageData(0,0,w,h).data, info=plainBgInfo(full,w,h);
-      if(mode==='plain'||info.plain){
-        mask=colorKeyMask(full,w,h,info.bg); mw=w; mh=h; method='plain';
-        if(mode==='auto'){   // sản phẩm quá sát màu nền (nón trắng/kem trên nền trắng) -> để AI làm cho chắc
+      if(job.mode==='plain'||info.plain){
+        mask=colorKeyMask(full,w,h,info.bg); method='plain';
+        if(job.mode==='auto'){   // sản phẩm quá sát màu nền (nón trắng/kem trên nền trắng) -> để AI làm cho chắc
           let sum=0,cnt=0,near=0; const bg=info.bg;
           for(let p=0,i=0;p<mask.length;p+=3,i+=12){ if(mask[p]<200)continue; const d=Math.max(Math.abs(full[i]-bg[0]),Math.abs(full[i+1]-bg[1]),Math.abs(full[i+2]-bg[2])); sum+=d; cnt++; if(d<48)near++; }
-          if(!cnt||near/cnt>0.35||sum/cnt<60)method='ai';
+          if(!cnt||near/cnt>0.35||sum/cnt<60){ method='ai'; mask=null; }
         }
-      }
-      else method='ai';
+      }else method='ai';
     }
     if(method==='ai'){
-      const s=await getSession(onProg), O=window.ort;
-      const t=makeCanvas(ISN,ISN), tc=t.getContext('2d',{willReadFrequently:true});
+      const t=cv(ISN,ISN), tc=t.getContext('2d',{willReadFrequently:true});
       tc.imageSmoothingEnabled=true; tc.imageSmoothingQuality='high'; tc.drawImage(bmp,0,0,ISN,ISN);
-      const x=new O.Tensor('float32',isnetPre(tc.getImageData(0,0,ISN,ISN).data),[1,3,ISN,ISN]);
-      const r=await s.run({[s.inputNames[0]]:x}); const out=r[s.outputNames[0]];
-      mask=isnetPost(out.data); out.dispose&&out.dispose(); mw=mh=ISN;
+      x=isnetPre(tc.getImageData(0,0,ISN,ISN).data); mw=mh=ISN;
     }
-    maskClean(mask,mw,mh);
-    const mc=makeCanvas(mw,mh), mx=mc.getContext('2d'), id=mx.createImageData(mw,mh);
-    for(let i=0;i<mask.length;i++)id.data[i*4+3]=mask[i];
+    bmp.close&&bmp.close();
+    return {job,c,ctx,w,h,method,mask,mw,mh,x};
+  }
+  async function finish(p){
+    if(p.method==='ai'){
+      await needAI();
+      const O=self.ort, r=await sess.run({[sess.inputNames[0]]:new O.Tensor('float32',p.x,[1,3,ISN,ISN])});
+      const out=r[sess.outputNames[0]]; p.mask=isnetPost(out.data); out.dispose&&out.dispose(); p.x=null;
+    }
+    maskClean(p.mask,p.mw,p.mh);
+    const mc=cv(p.mw,p.mh), mx=mc.getContext('2d'), id=mx.createImageData(p.mw,p.mh);
+    for(let i=0;i<p.mask.length;i++)id.data[i*4+3]=p.mask[i];
     mx.putImageData(id,0,0);
-    ctx.globalCompositeOperation='destination-in'; ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-    ctx.drawImage(mc,0,0,w,h); ctx.globalCompositeOperation='source-over';
-    return {blob:await canvasBlob(c,'image/png'),method};
-  }finally{ bmp.close&&bmp.close(); }
+    p.ctx.globalCompositeOperation='destination-in'; p.ctx.imageSmoothingEnabled=true; p.ctx.imageSmoothingQuality='high';
+    p.ctx.drawImage(mc,0,0,p.w,p.h);
+    const blob=await p.c.convertToBlob({type:'image/png'});
+    post({type:'done',id:p.job.id,blob,method:p.method});
+  }
+  const wrap=job=>prepare(job).catch(err=>({job,err}));
+  function pump(){
+    if(pumping)return; pumping=true;
+    (async()=>{
+      let nextP=null;
+      while(Q.length||nextP){
+        const cur=await (nextP||wrap(Q.shift())); nextP=null;
+        if(Q.length)nextP=wrap(Q.shift());           // chuẩn bị ảnh sau trong lúc AI chạy ảnh này
+        if(cur.err){ post({type:'err',id:cur.job.id,err:String(cur.err&&cur.err.message||cur.err)}); continue; }
+        try{ await finish(cur); }catch(err){ post({type:'err',id:cur.job.id,err:String(err&&err.message||err)}); }
+      }
+      pumping=false;
+    })();
+  }
 }
+/* ---- bộ quản lý luồng AI: tự chọn cấu hình, lỗi thì lùi dần, gửi lại việc đang dở ---- */
+const ENG={w:null,jobs:new Map(),seq:0,cfgs:null,ci:0,initing:false,ready:false,capsP:null,capsRes:null,timer:null,fatal:false};
+function engSpawn(){
+  const src='const ISN='+ISN+';\n'+[isnetPre,isnetPost,maskClean,plainBgInfo,colorKeyMask].map(String).join('\n')+'\n('+String(aiWorkerMain)+')();';
+  const w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
+  w.onmessage=e=>engMsg(w,e.data);
+  w.onerror=e=>{ if(e&&e.preventDefault)e.preventDefault(); if(w===ENG.w)engNext('luồng AI lỗi: '+((e&&e.message)||'không rõ')); };
+  ENG.w=w; ENG.ready=false; ENG.initing=false;
+  for(const [id,j] of ENG.jobs)w.postMessage({type:'job',id,blob:j.blob,mode:j.mode});
+  return w;
+}
+function engCaps(){
+  if(ENG.capsP)return ENG.capsP;
+  ENG.capsP=new Promise(res=>{ ENG.capsRes=res; (ENG.w||engSpawn()).postMessage({type:'caps'}); });
+  return ENG.capsP;
+}
+function engMsg(w,m){
+  if(w!==ENG.w)return;                                   // tin nhắn của luồng cũ đã bỏ
+  if(m.type==='caps'){ AI.caps=m; ENG.capsRes&&ENG.capsRes(m); }
+  else if(m.type==='need-ai')engInit();
+  else if(m.type==='ai-ready'){ clearTimeout(ENG.timer); AI.ep=m.ep; AI.threads=m.threads; AI.err=''; ENG.ready=true; ENG.initing=false; XL.modelTxt=''; }
+  else if(m.type==='ai-fail')engNext(m.err);
+  else if(m.type==='done'||m.type==='err'){
+    const j=ENG.jobs.get(m.id); if(!j)return; ENG.jobs.delete(m.id);
+    if(m.type==='done')j.res({blob:m.blob,method:m.method}); else j.rej(new Error(m.err));
+  }
+}
+async function engInit(){
+  if(ENG.initing||ENG.ready)return; ENG.initing=true;
+  const w=ENG.w;
+  try{
+    const caps=await engCaps();
+    if(!ENG.cfgs){
+      const T=caps.iso?Math.max(2,Math.min(8,(caps.cores||4)-1)):1, c=[];
+      if(caps.gpu){ c.push({ep:'webgpu',model:'./models/isnet.json',threads:T}); if(T>1)c.push({ep:'webgpu',model:'./models/isnet.json',threads:1}); }
+      c.push({ep:'wasm',model:'./models/isnet-u8.json',threads:T}); if(T>1)c.push({ep:'wasm',model:'./models/isnet-u8.json',threads:1});
+      ENG.cfgs=c; ENG.ci=0;
+    }
+    const cfg=ENG.cfgs[ENG.ci];
+    const prog=(g,t,l)=>{ XL.modelTxt='Đang tải '+(l||'AI')+' '+Math.round(g/t*100)+'% ('+Math.round(g/1048576)+'/'+Math.round(t/1048576)+' MB)'; };
+    const wasm=await fetchPack('./ort/ort-wasm.json',prog), model=await fetchPack(cfg.model,prog);
+    if(w!==ENG.w)return;
+    XL.modelTxt='Đang khởi động AI ('+(cfg.ep==='webgpu'?'card đồ hoạ':'CPU '+cfg.threads+' luồng')+')…';
+    const base=new URL('./ort/',location.href).href;
+    delete PACKS['./ort/ort-wasm.json']; delete PACKS[cfg.model];          // chuyển hẳn sang luồng AI, không giữ 2 bản trong RAM
+    ENG.timer=setTimeout(()=>{ if(w===ENG.w)engNext('khởi động quá lâu'); },240000);
+    w.postMessage({type:'init',ep:cfg.ep,threads:cfg.threads,ortJs:base+'ort.webgpu.min.js',mjs:base+'ort-wasm-simd-threaded.jsep.mjs',wasm,model},[wasm,model]);
+  }catch(e){ engFail(e.message||String(e)); }
+}
+function engNext(err){
+  clearTimeout(ENG.timer); AI.err=err;
+  const old=ENG.w; ENG.w=null; try{ old&&old.terminate(); }catch(e){}
+  ENG.ci++; ENG.initing=false; ENG.ready=false; AI.ep='';
+  if(!ENG.cfgs||ENG.ci>=ENG.cfgs.length){ engFail('Không khởi động được AI trên máy này ('+err+')'); return; }
+  engSpawn();                                            // luồng mới + gửi lại việc dở; cần AI sẽ tự xin cấu hình kế tiếp
+}
+function engFail(msg){
+  clearTimeout(ENG.timer); AI.err=msg; ENG.fatal=true; ENG.initing=false; ENG.ready=false;
+  const jobs=[...ENG.jobs.values()]; ENG.jobs.clear();
+  try{ ENG.w&&ENG.w.terminate(); }catch(e){} ENG.w=null;
+  jobs.forEach(j=>j.rej(new Error(msg)));
+}
+function engReset(){ if(ENG.fatal){ ENG.fatal=false; ENG.cfgs=null; ENG.ci=0; AI.err=''; } }
+function aiCut(blob,mode){
+  if(mode==='none')return Promise.resolve({blob,method:'none'});
+  return new Promise((res,rej)=>{
+    const id=++ENG.seq; ENG.jobs.set(id,{blob,mode,res,rej});
+    if(!ENG.w)engSpawn(); else ENG.w.postMessage({type:'job',id,blob,mode});
+  });
+}
+function aiLabel(){ return !AI.ep?'':AI.ep==='webgpu'?'AI: card đồ hoạ (WebGPU)':'AI: CPU · '+AI.threads+' luồng'; }
+/* giữ màn hình sáng khi đang chạy lô dài */
+let WL=null;
+async function wakeOn(){ try{ if('wakeLock' in navigator&&document.visibilityState==='visible'&&!WL){ WL=await navigator.wakeLock.request('screen'); WL.addEventListener('release',()=>{ WL=null; }); } }catch(e){ WL=null; } }
+function wakeOff(){ try{ WL&&WL.release(); }catch(e){} WL=null; }
+document.addEventListener('visibilitychange',()=>{ if(XL.running&&document.visibilityState==='visible')wakeOn(); });
+window.addEventListener('beforeunload',e=>{ if(XL.running){ e.preventDefault(); e.returnValue=''; } });
 
 /* ---- tải ảnh Shopee: thử tải thẳng; bị chặn thì qua proxy Google Apps Script ---- */
-const XL={det:null,file:'',jobs:[],urls:new Map(),running:false,paused:false,mode:'auto',keep:'on',conn:'',dlDone:0,cutDone:0,fail:0,cutMs:[],timer:null,pending:[],skuCol:-1,pos:new Set(),modelTxt:''};
+const XL={det:null,file:'',jobs:[],urls:new Map(),running:false,paused:false,mode:'auto',keep:'on',conn:'',dlDone:0,cutDone:0,fail:0,aiT:[],feed:null,timer:null,pending:[],skuCol:-1,pos:new Set(),modelTxt:''};
 function proxyUrl(){ try{ return (localStorage.getItem('ns_shopee_proxy')||'').trim(); }catch(e){ return ''; } }
 function setProxyUrl(v){ try{ localStorage.setItem('ns_shopee_proxy',(v||'').trim()); }catch(e){} }
 async function fetchDirect(u){
@@ -2049,14 +2142,14 @@ function xlEmit(rec){
   if(XL.pending.length>=40)xlFlush();
 }
 async function xlRun(){
-  XL.running=true; XL.paused=false; XL.fail=0;
+  if(XL.running)return;
+  XL.running=true; XL.paused=false; XL.fail=0; engReset();
   const recs=[...XL.urls.values()];
   for(const r of recs)if(r.st==='dang-tach')r.st=r.orig?'da-tai':'cho';
-  const todo=recs.filter(r=>r.st!=='xong');
-  xlUi();
-  if(!XL.timer)XL.timer=setInterval(()=>{ xlFlush(); xlUi(); },1200);
+  wakeOn(); xlUi();
+  if(!XL.timer)XL.timer=setInterval(()=>{ xlFlush(); xlUi(); },1500);
   // 1) nạp từ bộ nhớ tạm
-  for(const r of todo){
+  for(const r of recs){
     if(r.st==='xong')continue;
     const c=await xdbGet(r.url);
     if(c&&c.orig&&!r.orig){ r.orig=c.orig; r.beforeUrl=r.beforeUrl||URL.createObjectURL(c.orig); if(r.st==='cho'||r.st==='loi')r.st='da-tai'; }
@@ -2069,26 +2162,44 @@ async function xlRun(){
     xlMsg('Đang kiểm tra kết nối Shopee…');
     const m=await probeConn(need[0].url);
     if(m==='blocked'||m==='fail-proxy'){
-      XL.running=false; xlUi();
-      $('#xlAdv').open=true;
-      xlMsg(m==='blocked'?'<b>Shopee chặn tải thẳng từ trình duyệt.</b> Cài proxy Google Apps Script (file proxy-shopee.gs), dán link vào mục "Kết nối Shopee" rồi bấm lại <b>Tiếp tục</b>.'
+      XL.running=false; wakeOff(); xlUi(); $('#xlAdv').open=true;
+      xlMsg(m==='blocked'?'<b>Shopee chặn tải thẳng từ trình duyệt.</b> Cài proxy Google Apps Script (file proxy-shopee.gs), dán link vào mục "Kết nối Shopee" rồi bấm <b>Tiếp tục</b>.'
                          :'<b>Proxy không trả được ảnh.</b> Kiểm tra lại link web app (quyền truy cập: Bất kỳ ai) rồi bấm <b>Tiếp tục</b>.',true);
       return;
     }
     XL.conn=m;
   }
   xlMsg('');
-  // 3) tải song song
-  const dlQ=recs.filter(r=>!r.orig);
-  let dlIdx=0;
-  const dlOne=async(r)=>{
+  // 3) tách nền: luôn giữ tối đa 3 ảnh xếp hàng trong luồng AI (ảnh sau được chuẩn bị trong lúc AI chạy ảnh trước)
+  let inflight=0, dlOpen=true, endRes; const ended=new Promise(r=>{ endRes=r; });
+  const maybeEnd=()=>{ if(inflight===0&&(!XL.running||(!dlOpen&&!recs.some(x=>x.st==='da-tai'))))endRes(); };
+  const feed=()=>{
+    while(XL.running&&!XL.paused&&inflight<3){
+      const r=recs.find(x=>x.st==='da-tai'); if(!r)break;
+      r.st='dang-tach'; inflight++;
+      aiCut(r.orig,XL.mode).then(o=>{
+        r.cut=o.blob; r.method=o.method; r.st='xong'; XL.cutDone++;
+        if(o.method==='ai'){ XL.aiT.push(performance.now()); if(XL.aiT.length>21)XL.aiT.shift(); }
+        if(o.method!=='none')xdbPut(r.url,{orig:r.orig,cut:o.blob,method:o.method});
+        xlEmit(r);
+      }).catch(e=>{
+        r.st='loi'; r.err='tách nền: '+(e&&e.message||e); XL.fail++;
+        if(/bộ AI|GitHub Pages|khởi động được AI/.test(r.err)&&XL.running){ xlMsg('<b>Không khởi động được AI.</b> '+(e&&e.message||e),true); XL.running=false; }
+      }).finally(()=>{ inflight--; feed(); maybeEnd(); });
+    }
+    maybeEnd();
+  };
+  XL.feed=feed; feed();
+  // 4) tải song song
+  const dlQ=recs.filter(r=>!r.orig); let dlIdx=0;
+  const got=(r,b)=>{ r.orig=b; r.beforeUrl=URL.createObjectURL(b); r.st='da-tai'; XL.dlDone++; xdbPut(r.url,{orig:b}); feed(); };
+  const dlOne=async r=>{
     let err=null;
     for(let a=0;a<3;a++){
       try{
         const b=XL.conn==='proxy'?(await fetchProxy([r.url]))[r.url]:await fetchDirect(r.url);
         if(b instanceof Error)throw b;
-        r.orig=b; r.beforeUrl=URL.createObjectURL(b); r.st='da-tai'; XL.dlDone++;
-        xdbPut(r.url,{orig:b}); return;
+        got(r,b); return;
       }catch(e){ err=e; await sleep([1000,3000,9000][a]); }
     }
     r.st='loi'; r.err='tải: '+(err&&err.message||err); XL.fail++;
@@ -2099,45 +2210,19 @@ async function xlRun(){
       if(XL.conn==='proxy'){
         const batch=[]; while(dlIdx<dlQ.length&&batch.length<6)batch.push(dlQ[dlIdx++]);
         if(!batch.length)return;
-        try{
-          const o=await fetchProxy(batch.map(r=>r.url));
-          for(const r of batch){ const b=o[r.url]; if(b instanceof Blob){ r.orig=b; r.beforeUrl=URL.createObjectURL(b); r.st='da-tai'; XL.dlDone++; xdbPut(r.url,{orig:b}); } else await dlOne(r); }
-        }catch(e){ for(const r of batch)await dlOne(r); }
+        try{ const o=await fetchProxy(batch.map(r=>r.url)); for(const r of batch){ const b=o[r.url]; if(b instanceof Blob)got(r,b); else await dlOne(r); } }
+        catch(e){ for(const r of batch)await dlOne(r); }
       }else{
         if(dlIdx>=dlQ.length)return;
         await dlOne(dlQ[dlIdx++]);
       }
     }
   };
-  // 4) tách nền tuần tự (AI dùng chung 1 phiên)
-  const cutWorker=async()=>{
-    while(XL.running){
-      await waitPause(); if(!XL.running)return;
-      const r=recs.find(x=>x.st==='da-tai');
-      if(!r){ if(dlIdx>=dlQ.length&&dlBusy===0)return; await sleep(200); continue; }
-      r.st='dang-tach';
-      const t=performance.now();
-      try{
-        const o=await cutoutBlob(r.orig,XL.mode,(g,tt)=>{ XL.modelTxt='Đang tải model AI '+Math.round(g/tt*100)+'% ('+Math.round(g/1048576)+'/'+Math.round(tt/1048576)+' MB)'; });
-        XL.modelTxt='';
-        r.cut=o.blob; r.method=o.method; r.st='xong'; XL.cutDone++;
-        if(o.method==='ai'){ XL.cutMs.push(performance.now()-t); if(XL.cutMs.length>20)XL.cutMs.shift(); }
-        if(o.method!=='none')xdbPut(r.url,{orig:r.orig,cut:o.blob,method:o.method});
-        xlEmit(r);
-      }catch(e){
-        XL.modelTxt='';
-        r.st='loi'; r.err='tách nền: '+(e&&e.message||e); XL.fail++;
-        if(/models\/|GitHub Pages|thư viện AI/.test(r.err)){ xlMsg('<b>Không khởi động được AI.</b> '+e.message,true); XL.running=false; }
-      }
-      await sleep(0);
-    }
-  };
-  let dlBusy=0;
-  const nDl=XL.conn==='proxy'?3:6;
-  const dls=Array.from({length:nDl},()=>{ dlBusy++; return dlWorker().finally(()=>{ dlBusy--; }); });
-  await Promise.all([...dls,cutWorker()]);
-  xlFlush();
-  const wasRunning=XL.running; XL.running=false;
+  await Promise.all(Array.from({length:XL.conn==='proxy'?3:6},()=>dlWorker()));
+  dlOpen=false; feed(); maybeEnd();
+  await ended;
+  XL.feed=null; xlFlush();
+  const wasRunning=XL.running; XL.running=false; wakeOff();
   xlUi();
   if(wasRunning){
     const ok=recs.filter(r=>r.st==='xong').length, bad=recs.filter(r=>r.st==='loi').length;
@@ -2189,7 +2274,7 @@ function xlModeNote(){
   let warn='';
   if(XL.mode==='auto'||XL.mode==='ai'){
     if(location.protocol==='file:')warn='<br><b>AI không chạy khi mở file trực tiếp</b> — mở app qua link GitHub Pages.';
-    else if(!navigator.gpu)warn='<br><b>Trình duyệt này không có WebGPU</b> → AI chạy bằng CPU, chậm (cỡ 10–15 giây/ảnh). Nên dùng Chrome/Edge trên máy tính.';
+    else if(!navigator.gpu)warn='<br><b>Trình duyệt này không có WebGPU</b> → AI chạy bằng CPU (bản nén 8-bit, nhiều luồng) — chậm hơn card đồ hoạ. Nên dùng Chrome/Edge trên máy tính.';
   }
   el.innerHTML=txt+warn; el.classList.toggle('warn',!!warn);
 }
@@ -2227,7 +2312,7 @@ async function xlOpenFile(file){
 function xlStartRun(){
   if(XL.running)return;
   xlRecount(); if(!XL.jobs.length)return;
-  XL.urls=new Map(); XL.dlDone=0; XL.cutDone=0; XL.cutMs=[];
+  XL.urls=new Map(); XL.dlDone=0; XL.cutDone=0; XL.aiT=[];
   for(const j of XL.jobs){ let r=XL.urls.get(j.url); if(!r){ r={url:j.url,jobs:[],st:'cho',orig:null,cut:null,method:'',err:'',beforeUrl:''}; XL.urls.set(j.url,r); } r.jobs.push(j); }
   $('#xlCfg').classList.add('hidden'); $('#xlRun').classList.remove('hidden');
   // ghi chú chế độ hiện ngay trên khung chạy
@@ -2247,9 +2332,10 @@ function xlUi(){
   if(XL.conn)chips.push('<span class="chip">'+(XL.conn==='proxy'?'Tải qua proxy':'Tải thẳng từ Shopee')+'</span>');
   if(AI.ep)chips.push('<span class="chip">'+aiLabel()+'</span>');
   if(XL.modelTxt)chips.push('<span class="chip warn">'+XL.modelTxt+'</span>');
-  if(XL.cutMs.length){ const avg=XL.cutMs.reduce((a,b)=>a+b,0)/XL.cutMs.length, left=recs.filter(r=>r.st!=='xong'&&r.st!=='loi').length;
+  if(XL.aiT.length>=3){ const avg=(XL.aiT[XL.aiT.length-1]-XL.aiT[0])/(XL.aiT.length-1), left=recs.filter(r=>r.st!=='xong'&&r.st!=='loi').length;
     chips.push('<span class="chip">'+(avg/1000).toFixed(1)+' giây/ảnh AI</span>');
     if(XL.running&&left)chips.push('<span class="chip">còn khoảng '+Math.max(1,Math.round(avg*left/60000))+' phút</span>'); }
+  if(XL.running&&XL.paused)chips.push('<span class="chip warn">Đang tạm dừng</span>');
   if(bad.length)chips.push('<span class="chip warn">'+bad.length+' lỗi</span>');
   if(!XL.running&&allDone)chips.push('<span class="chip">Đã đưa '+cut+' link vào lưới — bấm Chạy toàn bộ để ghép khung</span>');
   $('#xlMeta').innerHTML=chips.join('');
@@ -2287,7 +2373,7 @@ function xlWire(){
   };
   $('#xlStart').onclick=xlStartRun;
   $('#xlPause').onclick=()=>{
-    if(XL.running){ XL.paused=!XL.paused; xlUi(); return; }
+    if(XL.running){ XL.paused=!XL.paused; if(!XL.paused&&XL.feed)XL.feed(); xlUi(); return; }
     xlRun();
   };
   $('#xlRetry').onclick=()=>{ for(const r of XL.urls.values())if(r.st==='loi'){ r.st=r.orig?'da-tai':'cho'; r.err=''; } xlRun(); };
