@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  anhshopee — NS · XỬ LÝ ẢNH   v1.3.6
+  anhshopee — NS · XỬ LÝ ẢNH   v1.3.7
   Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT. Chạy 100% trong trình duyệt, không server.
   Chạy: bấm đúp file này (local), hoặc thả vào repo GitHub → GitHub Pages tự chạy.
 -->
@@ -1955,11 +1955,14 @@ async function fetchFrom(base,rel,onProg){
   const dir=man.slice(0,man.lastIndexOf('/')+1), out=new Uint8Array(m.size); let got=0;
   const put=v=>{ if(got+v.length>m.size)throw new Error('Gói sai kích thước: '+man); out.set(v,got); got+=v.length; onProg&&onProg(got,m.size,m.label); };
   for(const p of m.parts){
-    const r=await fetch(dir+p.name); if(!r.ok)throw new Error('HTTP '+r.status+' · '+dir+p.name);
+    const before=got;
+    const r=await fetch(dir+p.name); if(!r.ok)throw new Error('thiếu file '+p.name+' (HTTP '+r.status+') — up lại file này');
     if(r.body&&r.body.getReader){ const rd=r.body.getReader(); for(;;){ const {done,value}=await rd.read(); if(done)break; put(value); } }
     else put(new Uint8Array(await r.arrayBuffer()));
+    if(p.size&&got-before!==p.size)throw new Error('file '+p.name+' hỏng/thiếu ('+(got-before)+'/'+p.size+' byte) — up lại đúng file này');
   }
-  if(got!==m.size)throw new Error('Tải thiếu ('+got+'/'+m.size+' byte) · '+man);
+  if(got!==m.size)throw new Error('bộ '+man.split('/').pop()+' thiếu '+(m.size-got)+' byte — có file chưa lên đủ');
+  if(m.sha256&&typeof sha256Hex==='function'){ const h=await sha256Hex(out.buffer); if(h&&h!==m.sha256)throw new Error('bộ '+man.split('/').pop()+' sai mã băm — có file lên thiếu, up lại cả bộ'); }
   return out.buffer;
 }
 async function fetchPack(rel,onProg){
@@ -2124,7 +2127,7 @@ function aiWorkerMain(){
 }
 /* ---- bộ quản lý luồng AI: tự chọn cấu hình, lỗi thì lùi dần, gửi lại việc đang dở ---- */
 /* ---- bộ quản lý NHÓM luồng AI: chạy song song nhiều luồng, tự lùi cấu hình khi máy không chịu ---- */
-const ENG={ws:[],jobs:new Map(),seq:0,cfgs:null,ci:0,initP:null,ready:false,capsP:null,capsRes:null,fatal:false,src:null,rt:null,want:1};
+const ENG={ws:[],jobs:new Map(),seq:0,cfgs:null,ci:0,initP:null,ready:false,capsP:null,capsRes:null,fatal:false,src:null,rt:null,want:1,bad:new Set()};
 function engNewWorker(){
   const src='const ISN='+ISN+';\n'+[isnetPre,isnetPost,maskClean,plainBgInfo,colorKeyMask,sha256Hex,fetchFile,fetchFrom].map(String).join('\n')+'\n('+String(aiWorkerMain)+')();';
   const w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
@@ -2163,11 +2166,15 @@ function engDown(o,err){
   AI.err=err;
   if(!ENG.ws.length)engNextCfg(err); else engPump();
 }
+function srcKey(s){ return s?(s.mode==='file'?s.url:s.base+s.rel):''; }
 function engNextCfg(err){
   AI.err=err; ENG.ready=false; AI.ep=''; ENG.initP=null;
   ENG.ws.forEach(o=>{ try{ o.w.terminate(); }catch(e){} o.jobs.forEach(id=>{ const j=ENG.jobs.get(id); if(j)j.sent=false; }); });
   ENG.ws=[];
-  ENG.ci++;
+  const modelErr=/thiếu|hỏng|mã băm|sai kích thước|HTTP/i.test(err||'');
+  if(modelErr&&ENG.src){                                  // nguồn model lỗi -> bỏ nguồn đó, thử nguồn khác, giữ nguyên cấu hình
+    ENG.bad.add(srcKey(ENG.src)); ENG.badMsg=err; ENG.src=null;
+  }else ENG.ci++;
   if(!ENG.cfgs||ENG.ci>=ENG.cfgs.length){ engFail('Không khởi động được AI trên máy này ('+err+')'); return; }
   engInit();
 }
@@ -2184,11 +2191,13 @@ async function engFindSrc(kinds){
   const head=async u=>{ try{ const r=await fetch(u,{mode:'cors',credentials:'omit',headers:{Range:'bytes=0-99'}}); return r.ok; }catch(e){ return false; } };
   for(const kind of kinds){
     for(const s of AI_SRC[kind]){
+      if(s.file&&ENG.bad.has(s.file))continue;
       if(s.manifest){
         for(const base of ['./'].concat(b?[b+'/']:[])){
           try{
             const r=await fetch(base+s.manifest,{cache:'no-cache'}); if(!r.ok)continue;
             const man=await r.json(); const dir=s.manifest.slice(0,s.manifest.lastIndexOf('/')+1);
+            if(ENG.bad.has(abs(base)+s.manifest))continue;
             if(await head(abs(base+dir+man.parts[0].name)))return {kind,mode:'manifest',base:abs(base),rel:s.manifest,label:man.label||'model AI'};
           }catch(e){}
         }
@@ -2228,7 +2237,10 @@ async function engInit(){
     }
     const cfg=ENG.cfgs[ENG.ci];
     const rt=await engRuntime();
-    if(!ENG.src||ENG.src.kinds!==cfg.kinds.join()){ XL.modelTxt='Đang tìm nguồn model AI…'; ENG.src=await engFindSrc(cfg.kinds); ENG.src.kinds=cfg.kinds.join(); }
+    if(!ENG.src||ENG.src.kinds!==cfg.kinds.join()){
+      XL.modelTxt='Đang tìm nguồn model AI…'; ENG.src=await engFindSrc(cfg.kinds); ENG.src.kinds=cfg.kinds.join();
+      if(ENG.badMsg){ toast('Bỏ qua nguồn model lỗi: '+ENG.badMsg+' — chuyển sang '+(ENG.src.mode==='file'?'nguồn trên mạng':'nguồn khác'),true); ENG.badMsg=''; }
+    }
     AI.kind=ENG.src.kind;
     ENG.want=engWantWorkers(cfg,caps);
     const msg={type:'init',ep:cfg.ep,threads:cfg.threads,ortJs:rt.ortJs,mjs:rt.mjs,wasmUrl:rt.wasmUrl,wasmSrc:rt.wasmSrc,src:ENG.src};
@@ -2530,7 +2542,11 @@ function xlUi(){
   if(bad.length)chips.push('<span class="chip warn">'+bad.length+' lỗi</span>');
   if(!XL.running&&allDone)chips.push('<span class="chip">Đã đưa '+cut+' link vào lưới — bấm Chạy toàn bộ để ghép khung</span>');
   $('#xlMeta').innerHTML=chips.join('');
-  $('#xlErrs').innerHTML=bad.slice(0,60).map(r=>r.jobs[0].sku+' · '+xlPosLabel(r.jobs[0].posLabel)+' — '+r.err).join('<br>');
+  const grp={}; bad.forEach(r=>{ (grp[r.err]=grp[r.err]||[]).push(r.jobs[0].sku+' · '+xlPosLabel(r.jobs[0].posLabel)); });
+  $('#xlErrs').innerHTML=Object.keys(grp).slice(0,8).map(k=>{
+    const v=grp[k], head=v.slice(0,3).join(', ')+(v.length>3?' … +'+(v.length-3)+' ảnh nữa':'');
+    return '<b>'+v.length+' ảnh — '+k+'</b><br>'+head;
+  }).join('<br><br>');
   $('#xlRetry').disabled=XL.running||!bad.length;
   $('#xlPause').textContent=!XL.running?'Tiếp tục':XL.paused?'Tiếp tục':'Tạm dừng';
   $('#xlPause').disabled=!XL.running&&allDone&&!bad.length;
