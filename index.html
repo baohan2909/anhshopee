@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  anhshopee — NS · XỬ LÝ ẢNH   v1.3.3
+  anhshopee — NS · XỬ LÝ ẢNH   v1.3.4
   Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT. Chạy 100% trong trình duyệt, không server.
   Chạy: bấm đúp file này (local), hoặc thả vào repo GitHub → GitHub Pages tự chạy.
 -->
@@ -705,7 +705,11 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
         <div class="field"><div class="lbl">Lấy vị trí ảnh</div><div class="xl-pos" id="xlPos"></div></div>
         <div class="field"><div class="lbl">Tách nền</div><div class="seg" id="xlMode"></div></div>
         <div class="xl-note" id="xlModeNote"></div>
-        <div class="field"><div class="lbl">Kèm ảnh tách nền PNG trong ZIP xuất</div><div class="seg" id="xlKeep"></div></div>
+        <div class="row2">
+          <div class="field"><div class="lbl">Thư mục riêng từng mã</div><div class="seg" id="xlFolder"></div></div>
+          <div class="field"><div class="lbl">Kèm ảnh tách nền PNG trong ZIP</div><div class="seg" id="xlKeep"></div></div>
+        </div>
+        <div class="xl-sum" id="xlName" style="margin:0 0 10px"></div>
         <details class="xl-adv" id="xlAdv">
           <summary>Kết nối Shopee <span id="xlConn" style="margin-left:8px;color:var(--muted-2);font-weight:500"></span></summary>
           <div class="field"><div class="lbl">Link proxy Google Apps Script <span style="color:var(--muted-2);font-weight:500">· chỉ cần khi Shopee chặn tải thẳng</span></div>
@@ -1820,8 +1824,16 @@ function xlsxDetect(rows){
 }
 /* dựng danh sách việc: mỗi ô link = 1 ảnh; trùng link tải 1 lần */
 function safeName(s){ return String(s).replace(/[\\/:*?"<>|\u0000-\u001f]/g,'-').replace(/\s+/g,' ').trim().replace(/[. ]+$/,'')||'khong-ten'; }
+function posSuffix(label,k){
+  const s=String(label||'');
+  if(/b[ìi]a/i.test(s))return ' - bia';
+  const m=/(\d+)\s*$/.exec(s);
+  if(m)return ' - hinh '+m[1];
+  return k===0?' - bia':' - hinh '+k;
+}
 function xlsxJobs(det,opts){
   const pos=new Set(opts.positions), skuCol=opts.skuCol, flt=(opts.filter||'').trim().toLowerCase();
+  const folder=opts.folder!=='off';
   const jobs=[], seenName=new Set();
   det.data.forEach((d,ri)=>{
     const sku=safeName(d.cells[skuCol]||d.cells[det.idCol]||('dong-'+(d.row+1)));
@@ -1829,8 +1841,9 @@ function xlsxJobs(det,opts){
     det.imgCols.forEach((col,k)=>{
       if(!pos.has(k))return;
       const u=d.cells[col.c]; if(!u||!/^https?:\/\//i.test(u))return;
-      let rel=sku+'/'+sku+'-'+k+'.jpg';
-      if(seenName.has(rel))rel=sku+'/'+sku+'-'+k+'-'+(ri+1)+'.jpg';
+      const stem=sku+posSuffix(col.label,k);
+      let rel=(folder?sku+'/':'')+stem+'.jpg';
+      if(seenName.has(rel))rel=(folder?sku+'/':'')+stem+' ('+(ri+1)+').jpg';
       seenName.add(rel);
       jobs.push({url:u.trim(),sku,pos:k,posLabel:col.label,id:det.idCol>=0?(d.cells[det.idCol]||''):'',rel,status:'cho',method:'',err:''});
     });
@@ -2175,7 +2188,7 @@ document.addEventListener('visibilitychange',()=>{ if(XL.running&&document.visib
 window.addEventListener('beforeunload',e=>{ if(XL.running){ e.preventDefault(); e.returnValue=''; } });
 
 /* ---- tải ảnh Shopee: thử tải thẳng; bị chặn thì qua proxy Google Apps Script ---- */
-const XL={det:null,file:'',jobs:[],urls:new Map(),running:false,paused:false,mode:'auto',keep:'on',conn:'',dlDone:0,cutDone:0,fail:0,aiT:[],feed:null,timer:null,pending:[],skuCol:-1,pos:new Set(),modelTxt:''};
+const XL={det:null,file:'',jobs:[],urls:new Map(),running:false,paused:false,mode:'auto',keep:'on',conn:'',dlDone:0,cutDone:0,fail:0,aiT:[],feed:null,folder:'on',timer:null,pending:[],skuCol:-1,pos:new Set(),modelTxt:''};
 function proxyUrl(){ try{ return (localStorage.getItem('ns_shopee_proxy')||'').trim(); }catch(e){ return ''; } }
 function setProxyUrl(v){ try{ localStorage.setItem('ns_shopee_proxy',(v||'').trim()); }catch(e){} }
 async function fetchDirect(u){
@@ -2360,9 +2373,10 @@ function xlSetStep(n,done){ [1,2,3].forEach(k=>{ const e=$('#xs'+k); e.classList
 function xlPosLabel(l){ const s=String(l); if(/bìa/i.test(s))return 'Ảnh bìa'; const m=/(\d+)\s*$/.exec(s); return m?'Hình '+m[1]:s.slice(0,14); }
 function xlRecount(){
   if(!XL.det)return;
-  XL.jobs=xlsxJobs(XL.det,{positions:[...XL.pos],skuCol:XL.skuCol,filter:$('#xlFilter').value});
+  XL.jobs=xlsxJobs(XL.det,{positions:[...XL.pos],skuCol:XL.skuCol,filter:$('#xlFilter').value,folder:XL.folder});
   const u=new Set(XL.jobs.map(j=>j.url)).size, sk=new Set(XL.jobs.map(j=>j.sku)).size;
   $('#xlSum').innerHTML=XL.jobs.length?('Sẽ xử lý <b>'+XL.jobs.length+'</b> ảnh của <b>'+sk+'</b> mã · <b>'+u+'</b> link cần tải'):'Không có ảnh nào khớp bộ lọc';
+  const ex=$('#xlName'); if(ex)ex.innerHTML=XL.jobs.length?('Tên file: <b>'+XL.jobs.slice(0,2).map(j=>j.rel).join('</b> · <b>')+'</b>'):'';
   $('#xlStart').disabled=!XL.jobs.length;
 }
 async function xlOpenFile(file){
@@ -2371,7 +2385,7 @@ async function xlOpenFile(file){
     const x=await xlsxRead(buf), d=xlsxDetect(x.rows);
     if(!d.imgCols.length){ toast('Không thấy cột nào chứa link ảnh trong file',true); return; }
     XL.det=d; XL.file=file.name; XL.skuCol=d.skuCol>=0?d.skuCol:0; XL.pos=new Set(d.imgCols.map((c,k)=>k));
-    const all=xlsxJobs(d,{positions:[...XL.pos],skuCol:XL.skuCol});
+    const all=xlsxJobs(d,{positions:[...XL.pos],skuCol:XL.skuCol,folder:XL.folder});
     const uq=new Set(all.map(j=>j.url)).size;
     $('#xlStP').textContent=d.data.length; $('#xlStL').textContent=all.length; $('#xlStD').textContent=all.length-uq;
     const opts=[]; for(let c=0;c<d.ncol;c++){ if(d.imgCols.some(x=>x.c===c))continue; if(d.headers[c])opts.push({v:c,label:colName(c)+' · '+d.headers[c]}); }
@@ -2437,6 +2451,7 @@ function xlWire(){
   dz.addEventListener('drop',e=>{ const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f)xlOpenFile(f); });
   $('#xlFilter').oninput=xlRecount;
   Seg($('#xlMode'),[{v:'auto',label:'Tự động'},{v:'ai',label:'AI tất cả'},{v:'plain',label:'Nền phẳng'},{v:'none',label:'Không tách'}],()=>XL.mode,v=>{ XL.mode=v; xlModeNote(); });
+  Seg($('#xlFolder'),[{v:'on',label:'Có'},{v:'off',label:'Không'}],()=>XL.folder,v=>{ XL.folder=v; xlRecount(); });
   Seg($('#xlKeep'),[{v:'on',label:'Có'},{v:'off',label:'Không'}],()=>XL.keep,v=>{ XL.keep=v; });
   $('#xlProxy').value=proxyUrl();
   $('#xlProxy').onchange=()=>{ setProxyUrl($('#xlProxy').value); XL.conn=''; };

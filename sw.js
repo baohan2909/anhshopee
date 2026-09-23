@@ -3,7 +3,7 @@
    - Bộ AI (./ort, ./models) để ở cache RIÊNG, giữ qua mọi lần cập nhật app.
    - CHỈ dọn cache của chính app này (tiền tố ns-anh-/ns-lib-) — không đụng cache của app khác
      cùng địa chỉ baohan2909.github.io (PhotoFlow, sanpham…). */
-const CACHE = 'ns-anh-v12';
+const CACHE = 'ns-anh-v13';
 const FONT_CACHE = 'ns-anh-fonts-v1';
 const AI_CACHE = 'ns-model-isnet-v1';
 const KEEP = [CACHE, FONT_CACHE, AI_CACHE];
