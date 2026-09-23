@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  anhshopee — NS · XỬ LÝ ẢNH   v1.3.7
+  anhshopee — NS · XỬ LÝ ẢNH   v1.3.8
   Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT. Chạy 100% trong trình duyệt, không server.
   Chạy: bấm đúp file này (local), hoặc thả vào repo GitHub → GitHub Pages tự chạy.
 -->
@@ -1572,10 +1572,12 @@ async function runAll(){
 /* ================= export : ZIP (store) ================= */
 const CRC=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
 function crc32(u8){ let c=0^-1; for(let i=0;i<u8.length;i++)c=(c>>>8)^CRC[(c^u8[i])&0xFF]; return (c^-1)>>>0; }
-async function buildZip(entries){
-  const enc=new TextEncoder(), chunks=[], central=[]; let offset=0;
+async function buildZip(entries,onProg){
+  const enc=new TextEncoder(), chunks=[], central=[]; let offset=0, done=0, tick=performance.now();
   for(const {name,blob} of entries){
     const data=new Uint8Array(await blob.arrayBuffer());
+    if(performance.now()-tick>50){ tick=performance.now(); onProg&&onProg(done,entries.length); await new Promise(r=>setTimeout(r)); }   // nhường màn hình
+    done++;
     const crc=crc32(data), nb=enc.encode(name);
     const L=new Uint8Array(30+nb.length), dv=new DataView(L.buffer);
     dv.setUint32(0,0x04034b50,true); dv.setUint16(4,20,true); dv.setUint16(6,0x0800,true); dv.setUint16(8,0,true);
@@ -1603,7 +1605,7 @@ async function downloadZip(){
   const btn=$('#btnZip'); btn.disabled=true; const old=btn.innerHTML; btn.innerHTML='Đang nén…';
   try{
     const entries=done.map(i=>{ const {type}=outParams(i); return {name:outName(i,type).name,blob:i.outBlob}; }).concat(xlExtraEntries(done));
-    const zip=await buildZip(entries);
+    const zip=await buildZip(entries,(d,t)=>{ btn.innerHTML='Đang nén… '+Math.round(d/t*100)+'%'; });
     const url=URL.createObjectURL(zip);
     const a=document.createElement('a'); a.href=url; a.download='anhshopee_'+new Date().toISOString().slice(0,10)+'.zip'; a.click();
     setTimeout(()=>URL.revokeObjectURL(url),4000);
@@ -1678,12 +1680,16 @@ function wire(){
   });
 
   // drag & drop (whole middle)
-  const mid=$('.mid'), dz=$('#dragover'); let dc=0;
+  const mid=$('.mid'), dz=$('#dragover');
   const over=e=>{ e.preventDefault(); };
-  ['dragenter','dragover'].forEach(ev=>window.addEventListener(ev,e=>{ if(e.dataTransfer&&Array.from(e.dataTransfer.types||[]).includes('Files')){ e.preventDefault(); dc++; dz.classList.add('show'); } }));
-  ['dragleave','dragend'].forEach(ev=>window.addEventListener(ev,e=>{ dc=Math.max(0,dc-1); if(!dc)dz.classList.remove('show'); }));
+  let dragT=null;
+  const hideDz=()=>{ clearTimeout(dragT); dragT=null; dz.classList.remove('show'); };
+  const showDz=()=>{ dz.classList.add('show'); clearTimeout(dragT); dragT=setTimeout(hideDz,600); };   // ngừng kéo là tự tắt
+  ['dragenter','dragover'].forEach(ev=>window.addEventListener(ev,e=>{ if(e.dataTransfer&&Array.from(e.dataTransfer.types||[]).includes('Files')){ e.preventDefault(); showDz(); } }));
+  ['dragleave','dragend','blur','mouseleave'].forEach(ev=>window.addEventListener(ev,hideDz));
+  document.addEventListener('visibilitychange',hideDz);
   window.addEventListener('drop',async e=>{
-    if(!e.dataTransfer)return; e.preventDefault(); dc=0; dz.classList.remove('show');
+    if(!e.dataTransfer)return; e.preventDefault(); hideDz();
     const fl=e.dataTransfer.files&&[...e.dataTransfer.files].find(f=>/\.xlsx$/i.test(f.name));
     if(fl){ $('#xlBg').classList.add('show'); if(!XL.running)xlOpenFile(fl); return; }
     const items=await fromDataTransfer(e.dataTransfer); if(items.length)addImages(items);
@@ -1872,34 +1878,86 @@ function isnetPost(pred){
   for(let i=0;i<pred.length;i++){ const v=(pred[i]-mn)/r*255; m[i]=v<0?0:v>255?255:v; }
   return m;
 }
-/* làm sạch mặt nạ: bỏ bóng ma mờ, bỏ mảnh vụn, bỏ mảnh nhỏ nằm trong vùng tiêu đề khung cũ */
+/* làm sạch mặt nạ:
+   - bỏ mảnh vụn, bỏ dải chữ/logo của khung cũ (màu hồng thương hiệu, hoặc dải ngang dài ở phía trên)
+   - quét sạch điểm mờ lạc không nằm sát sản phẩm
+   - lấp lỗ NHỎ bên trong (nón trắng hay bị lủng), giữ lỗ LỚN (lòng nón rỗng thật) */
+function dilate1(src,dst,w,h,R){           // giãn nhị phân O(n) bằng cộng dồn, chạy một lượt
+  const n=w*h, pre=new Int32Array(w+1), t1=new Uint8Array(n);
+  for(let y=0;y<h;y++){
+    const row=y*w; pre[0]=0;
+    for(let x=0;x<w;x++)pre[x+1]=pre[x]+(src[row+x]?1:0);
+    for(let x=0;x<w;x++){ const a=x-R<0?0:x-R, b=x+R>w-1?w-1:x+R; t1[row+x]=pre[b+1]-pre[a]>0?1:0; }
+  }
+  const col=new Int32Array(w), last=Math.min(h-1,R);
+  for(let y=0;y<=last;y++){ const row=y*w; for(let x=0;x<w;x++)col[x]+=t1[row+x]; }
+  for(let y=0;y<h;y++){
+    const row=y*w;
+    for(let x=0;x<w;x++)dst[row+x]=col[x]>0?1:0;
+    const add=y+R+1, rem=y-R;
+    if(add<h){ const r=add*w; for(let x=0;x<w;x++)col[x]+=t1[r+x]; }
+    if(rem>=0){ const r=rem*w; for(let x=0;x<w;x++)col[x]-=t1[r+x]; }
+  }
+}
 function maskClean(m,w,h,opt){
-  opt=opt||{}; const lo=opt.lo==null?12:opt.lo, headTop=opt.headTop==null?0.2:opt.headTop;
-  for(let i=0;i<m.length;i++)if(m[i]<lo)m[i]=0;
-  const lab=new Int32Array(w*h).fill(-1), st=new Int32Array(w*h), comps=[];
-  for(let p0=0;p0<w*h;p0++){
-    if(m[p0]<128||lab[p0]>=0)continue;
-    const id=comps.length; let sp=0; st[sp++]=p0; lab[p0]=id; let area=0,y0=h,y1=0;
-    while(sp){ const p=st[--sp], y=(p/w)|0, x=p-y*w; area++; if(y<y0)y0=y; if(y>y1)y1=y;
-      for(let dy=-1;dy<=1;dy++){ const ny=y+dy; if(ny<0||ny>=h)continue;
-        for(let dx=-1;dx<=1;dx++){ const nx=x+dx; if(nx<0||nx>=w)continue; const q=ny*w+nx; if(m[q]>=128&&lab[q]<0){lab[q]=id;st[sp++]=q;} } } }
-    comps.push({area,y0,y1});
-  }
-  if(!comps.length)return {kept:0,dropped:0};
-  const big=Math.max(...comps.map(c=>c.area));
-  const drop=comps.map(c=> c.area<big*0.015 || (c.y1<h*headTop && c.area<big*0.25));
-  let dropped=0; drop.forEach(d=>{ if(d)dropped++; });
-  if(dropped){
-    // xoá cả vùng mờ quanh mảnh bị bỏ: loang từ điểm lõi ra các điểm mờ lân cận
-    const kill=new Uint8Array(w*h); let sp=0;
-    for(let p=0;p<w*h;p++){ if(lab[p]>=0&&drop[lab[p]]){ kill[p]=1; st[sp++]=p; } }
+  opt=opt||{};
+  const lo=opt.lo==null?12:opt.lo, px=opt.px||null;
+  const headTop=opt.headTop==null?0.35:opt.headTop, fillMax=opt.fillMax==null?0.05:opt.fillMax, pinkMax=opt.pinkMax==null?0.5:opt.pinkMax;
+  const n=w*h;
+  for(let i=0;i<n;i++)if(m[i]<lo)m[i]=0;
+  const core=new Uint8Array(n); for(let i=0;i<n;i++)core[i]=m[i]>=128?1:0;
+  const dil=new Uint8Array(n); dilate1(core,dil,w,h,2);
+  const lab=new Int32Array(n).fill(-1), st=new Int32Array(n), comps=[];
+  for(let p0=0;p0<n;p0++){
+    if(!dil[p0]||lab[p0]>=0)continue;
+    const id=comps.length; let sp=0; st[sp++]=p0; lab[p0]=id;
+    let area=0,x0=w,y0=h,x1=-1,y1=-1,pink=0;
     while(sp){ const p=st[--sp], y=(p/w)|0, x=p-y*w;
-      for(let dy=-1;dy<=1;dy++){ const ny=y+dy; if(ny<0||ny>=h)continue;
-        for(let dx=-1;dx<=1;dx++){ const nx=x+dx; if(nx<0||nx>=w)continue; const q=ny*w+nx;
-          if(!kill[q]&&m[q]>0&&m[q]<128){ kill[q]=1; st[sp++]=q; } } } }
-    for(let p=0;p<w*h;p++)if(kill[p])m[p]=0;
+      if(core[p]){ area++; if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+        if(px){ const i=p*4; if(px[i]-px[i+1]>60&&px[i]>120)pink++; } }
+      const L=x>0, Rr=x<w-1, U=y>0, D=y<h-1;
+      if(L&&dil[p-1]&&lab[p-1]<0){ lab[p-1]=id; st[sp++]=p-1; }
+      if(Rr&&dil[p+1]&&lab[p+1]<0){ lab[p+1]=id; st[sp++]=p+1; }
+      if(U&&dil[p-w]&&lab[p-w]<0){ lab[p-w]=id; st[sp++]=p-w; }
+      if(D&&dil[p+w]&&lab[p+w]<0){ lab[p+w]=id; st[sp++]=p+w; }
+      if(U&&L&&dil[p-w-1]&&lab[p-w-1]<0){ lab[p-w-1]=id; st[sp++]=p-w-1; }
+      if(U&&Rr&&dil[p-w+1]&&lab[p-w+1]<0){ lab[p-w+1]=id; st[sp++]=p-w+1; }
+      if(D&&L&&dil[p+w-1]&&lab[p+w-1]<0){ lab[p+w-1]=id; st[sp++]=p+w-1; }
+      if(D&&Rr&&dil[p+w+1]&&lab[p+w+1]<0){ lab[p+w+1]=id; st[sp++]=p+w+1; } }
+    comps.push({id,area,x0,y0,x1,y1,pink});
   }
-  return {kept:comps.length-dropped,dropped};
+  const live=comps.filter(c=>c.area>0);
+  if(!live.length)return {kept:0,dropped:0,filled:0};
+  const big=live.reduce((a,c)=>Math.max(a,c.area),0);
+  const drop=new Uint8Array(comps.length); let dropped=0;
+  for(const c of live){
+    const bw=c.x1-c.x0+1, bh=c.y1-c.y0+1, cy=(c.y0+c.y1)/2/h;
+    const isPink=px&&c.pink/c.area>pinkMax;                       // dải chữ / logo màu thương hiệu
+    const isBanner=bw>=4*bh&&c.area<big*0.4&&cy<headTop;          // dải chữ ngang ở phía trên
+    const isHead=c.y1<h*0.25&&c.area<big*0.08;                    // chữ/logo nằm gọn trong phần đầu khung cũ
+    if(c.area<big*0.015||isPink||isBanner||isHead){ drop[c.id]=1; dropped++; }
+  }
+  // giữ đúng vùng quanh sản phẩm được giữ; mọi điểm mờ lạc -> bỏ (dùng luôn kết quả tách cụm)
+  for(let p=0;p<n;p++){ const l=lab[p]; if(l<0||drop[l])m[p]=0; }
+  // lấp lỗ NHỎ bên trong, giữ lỗ LỚN (lòng nón rỗng thật)
+  const seen=new Uint8Array(n); let sp=0, filled=0;
+  const pushB=p=>{ if(!seen[p]&&m[p]<128){ seen[p]=1; st[sp++]=p; } };
+  for(let x=0;x<w;x++){ pushB(x); pushB((h-1)*w+x); }
+  for(let y=0;y<h;y++){ pushB(y*w); pushB(y*w+w-1); }
+  while(sp){ const p=st[--sp], x=p%w;
+    if(x>0)pushB(p-1); if(x<w-1)pushB(p+1); if(p>=w)pushB(p-w); if(p<n-w)pushB(p+w); }
+  const lim=big*fillMax, hole=new Int32Array(n);
+  for(let p0=0;p0<n;p0++){
+    if(seen[p0]||m[p0]>=128)continue;
+    let sp2=0, cnt=0; st[sp2++]=p0; seen[p0]=1; hole[cnt++]=p0;
+    while(sp2){ const p=st[--sp2], x=p%w; let q;
+      if(x>0){ q=p-1; if(!seen[q]&&m[q]<128){ seen[q]=1; st[sp2++]=q; hole[cnt++]=q; } }
+      if(x<w-1){ q=p+1; if(!seen[q]&&m[q]<128){ seen[q]=1; st[sp2++]=q; hole[cnt++]=q; } }
+      if(p>=w){ q=p-w; if(!seen[q]&&m[q]<128){ seen[q]=1; st[sp2++]=q; hole[cnt++]=q; } }
+      if(p<n-w){ q=p+w; if(!seen[q]&&m[q]<128){ seen[q]=1; st[sp2++]=q; hole[cnt++]=q; } } }
+    if(cnt<lim){ for(let i=0;i<cnt;i++)m[hole[i]]=255; filled++; }
+  }
+  return {kept:live.length-dropped,dropped,filled};
 }
 /* nền phẳng: màu nền = trung vị 4 góc; chỉ xoá phần nền LIỀN với mép ảnh (phần trắng trong lòng nón giữ lại) */
 function plainBgInfo(rgba,w,h){
@@ -2075,9 +2133,9 @@ function aiWorkerMain(){
   async function prepare(job){
     const bmp=await createImageBitmap(job.blob); const w=bmp.width,h=bmp.height;
     const c=cv(w,h), ctx=c.getContext('2d',{willReadFrequently:true}); ctx.drawImage(bmp,0,0);
-    let method=job.mode, mask=null, mw=w, mh=h, x=null;
+    let method=job.mode, mask=null, mw=w, mh=h, x=null, full=null;
     if(job.mode!=='ai'){
-      const full=ctx.getImageData(0,0,w,h).data, info=plainBgInfo(full,w,h);
+      full=ctx.getImageData(0,0,w,h).data; const info=plainBgInfo(full,w,h);
       if(job.mode==='plain'||info.plain){
         mask=colorKeyMask(full,w,h,info.bg); method='plain';
         if(job.mode==='auto'){   // sản phẩm quá sát màu nền (nón trắng/kem trên nền trắng) -> để AI làm cho chắc
@@ -2087,13 +2145,14 @@ function aiWorkerMain(){
         }
       }else method='ai';
     }
+    let mpx=null;
     if(method==='ai'){
       const t=cv(ISN,ISN), tc=t.getContext('2d',{willReadFrequently:true});
       tc.imageSmoothingEnabled=true; tc.imageSmoothingQuality='high'; tc.drawImage(bmp,0,0,ISN,ISN);
-      x=isnetPre(tc.getImageData(0,0,ISN,ISN).data); mw=mh=ISN;
-    }
+      mpx=tc.getImageData(0,0,ISN,ISN).data; x=isnetPre(mpx); mw=mh=ISN;
+    }else mpx=full;
     bmp.close&&bmp.close();
-    return {job,c,ctx,w,h,method,mask,mw,mh,x};
+    return {job,c,ctx,w,h,method,mask,mw,mh,x,mpx};
   }
   async function finish(p){
     if(p.method==='ai'){
@@ -2101,7 +2160,7 @@ function aiWorkerMain(){
       const O=self.ort, r=await sess.run({[sess.inputNames[0]]:new O.Tensor('float32',p.x,[1,3,ISN,ISN])});
       const out=r[sess.outputNames[0]]; p.mask=isnetPost(out.data); out.dispose&&out.dispose(); p.x=null;
     }
-    maskClean(p.mask,p.mw,p.mh);
+    maskClean(p.mask,p.mw,p.mh,{px:p.mpx}); p.mpx=null;
     const mc=cv(p.mw,p.mh), mx=mc.getContext('2d'), id=mx.createImageData(p.mw,p.mh);
     for(let i=0;i<p.mask.length;i++)id.data[i*4+3]=p.mask[i];
     mx.putImageData(id,0,0);
@@ -2129,7 +2188,7 @@ function aiWorkerMain(){
 /* ---- bộ quản lý NHÓM luồng AI: chạy song song nhiều luồng, tự lùi cấu hình khi máy không chịu ---- */
 const ENG={ws:[],jobs:new Map(),seq:0,cfgs:null,ci:0,initP:null,ready:false,capsP:null,capsRes:null,fatal:false,src:null,rt:null,want:1,bad:new Set()};
 function engNewWorker(){
-  const src='const ISN='+ISN+';\n'+[isnetPre,isnetPost,maskClean,plainBgInfo,colorKeyMask,sha256Hex,fetchFile,fetchFrom].map(String).join('\n')+'\n('+String(aiWorkerMain)+')();';
+  const src='const ISN='+ISN+';\n'+[isnetPre,isnetPost,dilate1,maskClean,plainBgInfo,colorKeyMask,sha256Hex,fetchFile,fetchFrom].map(String).join('\n')+'\n('+String(aiWorkerMain)+')();';
   const w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
   const o={w,ready:false,jobs:new Set()};
   w.onmessage=e=>engMsg(o,e.data);
