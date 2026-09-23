@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  anhshopee — NS · XỬ LÝ ẢNH   v1.3.1
+  anhshopee — NS · XỬ LÝ ẢNH   v1.3.2
   Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT. Chạy 100% trong trình duyệt, không server.
   Chạy: bấm đúp file này (local), hoặc thả vào repo GitHub → GitHub Pages tự chạy.
 -->
@@ -712,6 +712,11 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
             <div class="xl-row"><input class="inp" id="xlProxy" placeholder="https://script.google.com/macros/s/…/exec"><button class="btn-mini" id="xlTest" style="height:36px;flex:none">Kiểm tra</button></div>
           </div>
           <div class="modal-note">App tự thử tải thẳng trước. Nếu Shopee chặn, dán link web app từ file <b>proxy-shopee.gs</b> vào đây — lưu lại trong máy này.</div>
+          <div class="divide"></div>
+          <div class="field"><div class="lbl">Nguồn model AI <span style="color:var(--muted-2);font-weight:500">· để trống nếu model nằm trong repo</span></div>
+            <div class="xl-row"><input class="inp" id="xlAiBase" placeholder="https://…supabase.co/storage/v1/object/public/ai"><button class="btn-mini" id="xlAiTest" style="height:36px;flex:none">Kiểm tra</button></div>
+          </div>
+          <div class="modal-note">Dùng khi GitHub báo file quá lớn: đưa bộ AI lên kho có bật CORS (Supabase Storage, Hugging Face…) rồi dán link thư mục vào đây. App vẫn ưu tiên file trong repo nếu có.</div>
         </details>
         <div class="xl-sum" id="xlSum"></div>
         <button class="btn-ai" id="xlStart" style="width:100%;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Tải &amp; tách nền</button>
@@ -1922,20 +1927,34 @@ async function xdbClear(){ try{ const db=await xdbOpen(); await new Promise(res=
    Thư viện + model nằm trong repo (./ort, ./models): cùng nguồn, chạy offline sau lần tải đầu. */
 const AI={ep:'',threads:0,err:'',caps:null};
 const PACKS={};
-async function fetchPack(man,onProg){
-  if(PACKS[man])return PACKS[man];
-  if(location.protocol==='file:')throw new Error('AI chỉ chạy khi mở app qua link GitHub Pages');
-  let m; try{ const r=await fetch(man,{cache:'no-cache'}); if(!r.ok)throw 0; m=await r.json(); }
-  catch(e){ throw new Error('Chưa có bộ AI trên repo (thiếu '+man.replace('./','')+') — đưa gói anhshopee-ai lên gốc repo'); }
-  const base=man.slice(0,man.lastIndexOf('/')+1), out=new Uint8Array(m.size); let got=0;
-  const put=v=>{ if(got+v.length>m.size)throw new Error('Gói '+man+' sai kích thước'); out.set(v,got); got+=v.length; onProg&&onProg(got,m.size,m.label); };
+/* Model có thể nằm 2 nơi: trong repo (./models, ./ort) hoặc ở kho ngoài có bật CORS
+   (Supabase Storage / Hugging Face…) — dán link vào ô "Nguồn model AI". Thử repo trước, thiếu thì lấy kho ngoài. */
+function aiBase(){ try{ return (localStorage.getItem('ns_ai_base')||'').trim().replace(/\/+$/,''); }catch(e){ return ''; } }
+function setAiBase(v){ try{ localStorage.setItem('ns_ai_base',(v||'').trim().replace(/\/+$/,'')); }catch(e){} }
+async function fetchFrom(base,rel,onProg){
+  const man=base+rel;
+  const r0=await fetch(man,{cache:'no-cache'}); if(!r0.ok)throw new Error('HTTP '+r0.status+' · '+man);
+  const m=await r0.json();
+  const dir=man.slice(0,man.lastIndexOf('/')+1), out=new Uint8Array(m.size); let got=0;
+  const put=v=>{ if(got+v.length>m.size)throw new Error('Gói sai kích thước: '+man); out.set(v,got); got+=v.length; onProg&&onProg(got,m.size,m.label); };
   for(const p of m.parts){
-    const r=await fetch(base+p.name); if(!r.ok)throw new Error('Chưa có bộ AI trên repo (thiếu '+base.replace('./','')+p.name+')');
+    const r=await fetch(dir+p.name); if(!r.ok)throw new Error('HTTP '+r.status+' · '+dir+p.name);
     if(r.body&&r.body.getReader){ const rd=r.body.getReader(); for(;;){ const {done,value}=await rd.read(); if(done)break; put(value); } }
     else put(new Uint8Array(await r.arrayBuffer()));
   }
-  if(got!==m.size)throw new Error('Tải thiếu '+man+' ('+got+'/'+m.size+' byte) — tải lại trang rồi thử lại');
-  PACKS[man]=out.buffer; return out.buffer;
+  if(got!==m.size)throw new Error('Tải thiếu ('+got+'/'+m.size+' byte) · '+man);
+  return out.buffer;
+}
+async function fetchPack(rel,onProg){
+  if(PACKS[rel])return PACKS[rel];
+  if(location.protocol==='file:')throw new Error('AI chỉ chạy khi mở app qua link GitHub Pages');
+  const b=aiBase(), bases=['./']; if(b)bases.push(b+'/');
+  let last=null;
+  for(const base of bases){
+    try{ const buf=await fetchFrom(base,rel,onProg); PACKS[rel]=buf; return buf; }
+    catch(e){ last=e; }
+  }
+  throw new Error('Không lấy được bộ AI ('+rel+'): '+(last&&last.message||last)+(b?'':' — chưa đặt "Nguồn model AI" và repo cũng chưa có file'));
 }
 /* mã chạy TRONG luồng AI (được chuyển thành chuỗi) */
 function aiWorkerMain(){
@@ -2052,17 +2071,17 @@ async function engInit(){
     const caps=await engCaps();
     if(!ENG.cfgs){
       const T=caps.iso?Math.max(2,Math.min(8,(caps.cores||4)-1)):1, c=[];
-      if(caps.gpu){ c.push({ep:'webgpu',model:'./models/isnet.json',threads:T}); if(T>1)c.push({ep:'webgpu',model:'./models/isnet.json',threads:1}); }
-      c.push({ep:'wasm',model:'./models/isnet-u8.json',threads:T}); if(T>1)c.push({ep:'wasm',model:'./models/isnet-u8.json',threads:1});
+      if(caps.gpu){ c.push({ep:'webgpu',model:'models/isnet.json',threads:T}); if(T>1)c.push({ep:'webgpu',model:'models/isnet.json',threads:1}); }
+      c.push({ep:'wasm',model:'models/isnet-u8.json',threads:T}); if(T>1)c.push({ep:'wasm',model:'models/isnet-u8.json',threads:1});
       ENG.cfgs=c; ENG.ci=0;
     }
     const cfg=ENG.cfgs[ENG.ci];
     const prog=(g,t,l)=>{ XL.modelTxt='Đang tải '+(l||'AI')+' '+Math.round(g/t*100)+'% ('+Math.round(g/1048576)+'/'+Math.round(t/1048576)+' MB)'; };
-    const wasm=await fetchPack('./ort/ort-wasm.json',prog), model=await fetchPack(cfg.model,prog);
+    const wasm=await fetchPack('ort/ort-wasm.json',prog), model=await fetchPack(cfg.model,prog);
     if(w!==ENG.w)return;
     XL.modelTxt='Đang khởi động AI ('+(cfg.ep==='webgpu'?'card đồ hoạ':'CPU '+cfg.threads+' luồng')+')…';
     const base=new URL('./ort/',location.href).href;
-    delete PACKS['./ort/ort-wasm.json']; delete PACKS[cfg.model];          // chuyển hẳn sang luồng AI, không giữ 2 bản trong RAM
+    delete PACKS['ort/ort-wasm.json']; delete PACKS[cfg.model];          // chuyển hẳn sang luồng AI, không giữ 2 bản trong RAM
     ENG.timer=setTimeout(()=>{ if(w===ENG.w)engNext('khởi động quá lâu'); },240000);
     w.postMessage({type:'init',ep:cfg.ep,threads:cfg.threads,ortJs:base+'ort.webgpu.min.js',mjs:base+'ort-wasm-simd-threaded.jsep.mjs',wasm,model},[wasm,model]);
   }catch(e){ engFail(e.message||String(e)); }
@@ -2370,6 +2389,21 @@ function xlWire(){
     const m=await probeConn(u);
     $('#xlConn').textContent={direct:'tải thẳng được',proxy:'qua proxy được',blocked:'Shopee chặn — cần proxy','fail-proxy':'proxy lỗi'}[m];
     toast($('#xlConn').textContent,m==='blocked'||m==='fail-proxy');
+  };
+  $('#xlAiBase').value=aiBase();
+  $('#xlAiBase').onchange=()=>{ setAiBase($('#xlAiBase').value); for(const k in PACKS)delete PACKS[k]; };
+  $('#xlAiTest').onclick=async()=>{
+    setAiBase($('#xlAiBase').value); for(const k in PACKS)delete PACKS[k];
+    $('#xlAiBase').disabled=true;
+    const names={'ort/ort-wasm.json':'thư viện AI','models/isnet.json':'model đầy đủ','models/isnet-u8.json':'model 8-bit'}, ok=[], bad=[];
+    for(const rel in names){
+      const b=aiBase(), bases=['./']; if(b)bases.push(b+'/');
+      let found='';
+      for(const base of bases){ try{ const r=await fetch(base+rel,{cache:'no-cache'}); if(r.ok){ const m=await r.json(); const r2=await fetch(base+rel.slice(0,rel.lastIndexOf('/')+1)+m.parts[0].name,{method:'GET',headers:{Range:'bytes=0-99'}}); if(r2.ok){ found=base==='./'?'repo':'kho ngoài'; break; } } }catch(e){} }
+      found?ok.push(names[rel]+' ('+found+')'):bad.push(names[rel]);
+    }
+    $('#xlAiBase').disabled=false;
+    toast(bad.length?('Thiếu: '+bad.join(', ')+(ok.length?' · có: '+ok.join(', '):'')):('Đủ bộ AI — '+ok.join(', ')),bad.length>0);
   };
   $('#xlStart').onclick=xlStartRun;
   $('#xlPause').onclick=()=>{
