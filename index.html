@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  anhshopee — NS · XỬ LÝ ẢNH   v1.3.5
+  anhshopee — NS · XỬ LÝ ẢNH   v1.3.6
   Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT. Chạy 100% trong trình duyệt, không server.
   Chạy: bấm đúp file này (local), hoặc thả vào repo GitHub → GitHub Pages tự chạy.
 -->
@@ -2447,6 +2447,10 @@ function xlExtraEntries(done){
 
 /* ---- giao diện bảng nhập ---- */
 function xlMsg(html,warn){ const el=$('#xlModeNote'); if(!el)return; if(!html){ xlModeNote(); return; } el.innerHTML=html; el.classList.toggle('warn',!!warn); }
+function noteToCfg(){            // đưa ghi chú chế độ về ngay dưới ô "Tách nền" (an toàn dù bố cục đổi)
+  const note=$('#xlModeNote'), ref=$('#xlMode')&&$('#xlMode').closest('.field');
+  if(note&&ref&&ref.parentNode)ref.parentNode.insertBefore(note,ref.nextSibling);
+}
 function xlModeNote(){
   const el=$('#xlModeNote'); if(!el)return;
   const txt={
@@ -2490,7 +2494,7 @@ async function xlOpenFile(file){
       b.onclick=()=>{ if(XL.pos.has(k))XL.pos.delete(k); else XL.pos.add(k); b.classList.toggle('on',XL.pos.has(k)); xlRecount(); };
       host.appendChild(b);
     });
-    $('#xlCfg').insertBefore($('#xlModeNote'),$('#xlKeep').closest('.field'));
+    noteToCfg();
     $('#xlDrop').classList.add('hidden'); $('#xlCfg').classList.remove('hidden'); $('#xlRun').classList.add('hidden');
     xlSetStep(1); xlModeNote(); xlRecount();
   }catch(e){ toast('Không đọc được Excel: '+(e.message||e),true); }
@@ -2598,7 +2602,7 @@ function xlWire(){
   $('#xlNew').onclick=()=>{
     if(XL.running){ toast('Đang chạy — tạm dừng hoặc đợi xong trước',true); return; }
     XL.det=null; XL.urls=new Map(); XL.jobs=[];
-    $('#xlCfg').insertBefore($('#xlModeNote'),$('#xlKeep').closest('.field'));
+    noteToCfg();
     $('#xlRun').classList.add('hidden'); $('#xlCfg').classList.add('hidden'); $('#xlDrop').classList.remove('hidden'); xlSetStep(1);
   };
 }
