@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  anhshopee — NS · XỬ LÝ ẢNH   v1.3.4
+  anhshopee — NS · XỬ LÝ ẢNH   v1.3.5
   Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT. Chạy 100% trong trình duyệt, không server.
   Chạy: bấm đúp file này (local), hoặc thả vào repo GitHub → GitHub Pages tự chạy.
 -->
@@ -704,6 +704,10 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
         </div>
         <div class="field"><div class="lbl">Lấy vị trí ảnh</div><div class="xl-pos" id="xlPos"></div></div>
         <div class="field"><div class="lbl">Tách nền</div><div class="seg" id="xlMode"></div></div>
+        <div class="row2">
+          <div class="field"><div class="lbl">Số luồng AI chạy song song</div><div id="xlWorkers"></div></div>
+          <div class="field"><div class="lbl">Máy này</div><div class="inp" id="xlCaps" style="display:flex;align-items:center;font-size:11.5px;color:var(--muted)">đang kiểm…</div></div>
+        </div>
         <div class="xl-note" id="xlModeNote"></div>
         <div class="row2">
           <div class="field"><div class="lbl">Thư mục riêng từng mã</div><div class="seg" id="xlFolder"></div></div>
@@ -2038,10 +2042,22 @@ function aiWorkerMain(){
         if(!self.ort)importScripts(m.ortJs);
         const O=self.ort;
         O.env.logLevel='error';
-        O.env.wasm.wasmPaths=m.wasm?{mjs:m.mjs}:{mjs:m.mjs,wasm:m.wasmUrl};
-        if(m.wasm)O.env.wasm.wasmBinary=m.wasm;
+        const prog=(got,total,label)=>post({type:'prog',got,total,label});
+        const grab=async src=>{
+          if(src.mode==='file'){
+            const b=await fetchFile(src.url,src.label,prog);
+            if(src.size&&b.byteLength!==src.size)throw new Error('model sai kích thước');
+            if(src.sha){ const h=await sha256Hex(b); if(h&&h!==src.sha)throw new Error('model sai mã băm'); }
+            return b;
+          }
+          return await fetchFrom(src.base,src.rel,prog);
+        };
+        const wasmBin=m.wasmSrc?await grab(m.wasmSrc):null;
+        O.env.wasm.wasmPaths=wasmBin?{mjs:m.mjs}:{mjs:m.mjs,wasm:m.wasmUrl};
+        if(wasmBin)O.env.wasm.wasmBinary=wasmBin;
         O.env.wasm.numThreads=m.threads; O.env.wasm.initTimeout=30000;
-        const s=await O.InferenceSession.create(new Uint8Array(m.model),{executionProviders:[m.ep],graphOptimizationLevel:'all'});
+        const model=await grab(m.src);
+        const s=await O.InferenceSession.create(new Uint8Array(model),{executionProviders:[m.ep],graphOptimizationLevel:'all'});
         const z=new O.Tensor('float32',new Float32Array(3*ISN*ISN),[1,3,ISN,ISN]);     // chạy thử 1 lần cho chắc
         const o=await s.run({[s.inputNames[0]]:z}); const t=o[s.outputNames[0]]; t&&t.dispose&&t.dispose();
         sess=s; post({type:'ai-ready',ep:m.ep,threads:m.threads}); aiOk&&aiOk();
@@ -2107,36 +2123,102 @@ function aiWorkerMain(){
   }
 }
 /* ---- bộ quản lý luồng AI: tự chọn cấu hình, lỗi thì lùi dần, gửi lại việc đang dở ---- */
-const ENG={w:null,jobs:new Map(),seq:0,cfgs:null,ci:0,initing:false,ready:false,capsP:null,capsRes:null,timer:null,fatal:false};
-function engSpawn(){
-  const src='const ISN='+ISN+';\n'+[isnetPre,isnetPost,maskClean,plainBgInfo,colorKeyMask].map(String).join('\n')+'\n('+String(aiWorkerMain)+')();';
+/* ---- bộ quản lý NHÓM luồng AI: chạy song song nhiều luồng, tự lùi cấu hình khi máy không chịu ---- */
+const ENG={ws:[],jobs:new Map(),seq:0,cfgs:null,ci:0,initP:null,ready:false,capsP:null,capsRes:null,fatal:false,src:null,rt:null,want:1};
+function engNewWorker(){
+  const src='const ISN='+ISN+';\n'+[isnetPre,isnetPost,maskClean,plainBgInfo,colorKeyMask,sha256Hex,fetchFile,fetchFrom].map(String).join('\n')+'\n('+String(aiWorkerMain)+')();';
   const w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
-  w.onmessage=e=>engMsg(w,e.data);
-  w.onerror=e=>{ if(e&&e.preventDefault)e.preventDefault(); if(w===ENG.w)engNext('luồng AI lỗi: '+((e&&e.message)||'không rõ')); };
-  ENG.w=w; ENG.ready=false; ENG.initing=false;
-  for(const [id,j] of ENG.jobs)w.postMessage({type:'job',id,blob:j.blob,mode:j.mode});
-  return w;
+  const o={w,ready:false,jobs:new Set()};
+  w.onmessage=e=>engMsg(o,e.data);
+  w.onerror=e=>{ if(e&&e.preventDefault)e.preventDefault(); engDown(o,'luồng AI lỗi: '+((e&&e.message)||'không rõ')); };
+  return o;
 }
 function engCaps(){
   if(ENG.capsP)return ENG.capsP;
-  ENG.capsP=new Promise(res=>{ ENG.capsRes=res; (ENG.w||engSpawn()).postMessage({type:'caps'}); });
+  ENG.capsP=new Promise(res=>{ ENG.capsRes=res; if(!ENG.ws.length)ENG.ws.push(engNewWorker()); ENG.ws[0].w.postMessage({type:'caps'}); });
   return ENG.capsP;
 }
-function engMsg(w,m){
-  if(w!==ENG.w)return;                                   // tin nhắn của luồng cũ đã bỏ
+function engMsg(o,m){
+  if(ENG.ws.indexOf(o)<0)return;                       // tin nhắn của luồng đã bỏ
   if(m.type==='caps'){ AI.caps=m; ENG.capsRes&&ENG.capsRes(m); }
+  else if(m.type==='prog'){ XL.modelTxt='Đang tải '+(m.label||'bộ AI')+' '+Math.round(m.got/m.total*100)+'% ('+Math.round(m.got/1048576)+'/'+Math.round(m.total/1048576)+' MB)'; }
   else if(m.type==='need-ai')engInit();
-  else if(m.type==='ai-ready'){ clearTimeout(ENG.timer); AI.ep=m.ep; AI.threads=m.threads; AI.err=''; ENG.ready=true; ENG.initing=false; XL.modelTxt=''; }
-  else if(m.type==='ai-fail')engNext(m.err);
+  else if(m.type==='ai-ready'){ o.ready=true; AI.ep=m.ep; AI.threads=m.threads; AI.err=''; ENG.ready=true; XL.modelTxt=''; if(o.res){ const r=o.res; o.res=null; r(true); } engPump(); }
+  else if(m.type==='ai-fail')engDown(o,m.err);
   else if(m.type==='done'||m.type==='err'){
+    o.jobs.delete(m.id);
     const j=ENG.jobs.get(m.id); if(!j)return; ENG.jobs.delete(m.id);
     if(m.type==='done')j.res({blob:m.blob,method:m.method}); else j.rej(new Error(m.err));
+    engPump();
   }
 }
-async function engInit(){
-  if(ENG.initing||ENG.ready)return; ENG.initing=true;
-  const w=ENG.w;
+/* một luồng chết -> trả việc của nó về hàng đợi; nếu chết lúc khởi động thì hạ cấu hình cho cả nhóm */
+function engDown(o,err){
+  const i=ENG.ws.indexOf(o); if(i<0)return;
+  if(o.res){ const r=o.res; o.res=null; r(false); }
+  ENG.ws.splice(i,1); try{ o.w.terminate(); }catch(e){}
+  const back=[...o.jobs]; o.jobs.clear();
+  back.forEach(id=>{ const j=ENG.jobs.get(id); if(j)j.sent=false; });
+  if(!o.ready){ engNextCfg(err); return; }             // lỗi lúc khởi động -> đổi cấu hình
+  AI.err=err;
+  if(!ENG.ws.length)engNextCfg(err); else engPump();
+}
+function engNextCfg(err){
+  AI.err=err; ENG.ready=false; AI.ep=''; ENG.initP=null;
+  ENG.ws.forEach(o=>{ try{ o.w.terminate(); }catch(e){} o.jobs.forEach(id=>{ const j=ENG.jobs.get(id); if(j)j.sent=false; }); });
+  ENG.ws=[];
+  ENG.ci++;
+  if(!ENG.cfgs||ENG.ci>=ENG.cfgs.length){ engFail('Không khởi động được AI trên máy này ('+err+')'); return; }
+  engInit();
+}
+function engFail(msg){
+  AI.err=msg; ENG.fatal=true; ENG.ready=false; ENG.initP=null;
+  const jobs=[...ENG.jobs.values()]; ENG.jobs.clear();
+  ENG.ws.forEach(o=>{ try{ o.w.terminate(); }catch(e){} }); ENG.ws=[];
+  jobs.forEach(j=>j.rej(new Error(msg)));
+}
+function engReset(){ if(ENG.fatal){ ENG.fatal=false; ENG.cfgs=null; ENG.ci=0; AI.err=''; ENG.src=null; } }
+/* tìm nguồn model dùng được (chỉ dò, không tải hết) */
+async function engFindSrc(kinds){
+  const abs=u=>new URL(u,location.href).href, b=aiBase();
+  const head=async u=>{ try{ const r=await fetch(u,{mode:'cors',credentials:'omit',headers:{Range:'bytes=0-99'}}); return r.ok; }catch(e){ return false; } };
+  for(const kind of kinds){
+    for(const s of AI_SRC[kind]){
+      if(s.manifest){
+        for(const base of ['./'].concat(b?[b+'/']:[])){
+          try{
+            const r=await fetch(base+s.manifest,{cache:'no-cache'}); if(!r.ok)continue;
+            const man=await r.json(); const dir=s.manifest.slice(0,s.manifest.lastIndexOf('/')+1);
+            if(await head(abs(base+dir+man.parts[0].name)))return {kind,mode:'manifest',base:abs(base),rel:s.manifest,label:man.label||'model AI'};
+          }catch(e){}
+        }
+      }else if(await head(s.file)){
+        return {kind,mode:'file',url:s.file,size:AI_SHA['size_'+kind],sha:AI_SHA[kind],label:kind==='u8'?'model AI 8-bit':'model AI'};
+      }
+    }
+  }
+  throw new Error('không tìm thấy model AI ở nguồn nào');
+}
+async function engRuntime(){
+  if(ENG.rt)return ENG.rt;
+  const base=new URL('./ort/',location.href).href;
   try{
+    const r=await fetch(base+'ort-wasm.json',{cache:'no-cache'});
+    if(r.ok){ const m=await r.json(); const r2=await fetch(base+m.parts[0].name,{headers:{Range:'bytes=0-99'}});
+      if(r2.ok){ ENG.rt={ortJs:base+'ort.webgpu.min.js',mjs:base+'ort-wasm-simd-threaded.jsep.mjs',wasmSrc:{mode:'manifest',base,rel:'ort-wasm.json',label:'thư viện AI'}}; return ENG.rt; } }
+  }catch(e){}
+  ENG.rt={ortJs:ORT_CDN+'ort.webgpu.min.js',mjs:ORT_CDN+'ort-wasm-simd-threaded.jsep.mjs',wasmUrl:ORT_CDN+'ort-wasm-simd-threaded.jsep.wasm'};
+  return ENG.rt;
+}
+function engWantWorkers(cfg,caps){
+  if(XL.aiWorkers&&XL.aiWorkers!=='auto')return Math.max(1,+XL.aiWorkers);
+  if(cfg.ep==='webgpu')return 1;                        // card đồ hoạ: 1 luồng là đủ, thêm chỉ tranh nhau
+  if(cfg.threads>1)return 1;                            // đã chạy đa luồng trong 1 luồng AI
+  return Math.max(1,Math.min(2,Math.floor((caps.cores||4)/2)));   // CPU 1 luồng -> chạy song song nhiều luồng AI (mỗi luồng tốn thêm RAM)
+}
+async function engInit(){
+  if(ENG.initP)return ENG.initP;
+  ENG.initP=(async()=>{
     const caps=await engCaps();
     if(!ENG.cfgs){
       const T=caps.iso?Math.max(2,Math.min(8,(caps.cores||4)-1)):1, c=[];
@@ -2145,41 +2227,52 @@ async function engInit(){
       ENG.cfgs=c; ENG.ci=0;
     }
     const cfg=ENG.cfgs[ENG.ci];
-    const prog=(g,t,l)=>{ XL.modelTxt='Đang tải '+(l||'AI')+' '+Math.round(g/t*100)+'% ('+Math.round(g/1048576)+'/'+Math.round(t/1048576)+' MB)'; };
-    const rt=await getRuntime(prog);
-    let model=null,last=null;
-    for(const k of cfg.kinds){ try{ model=await getModel(k,prog); AI.kind=k; break; }catch(e){ last=e; } }
-    if(!model)throw last||new Error('không có model AI');
-    if(w!==ENG.w)return;
-    XL.modelTxt='Đang khởi động AI ('+(cfg.ep==='webgpu'?'card đồ hoạ':'CPU '+cfg.threads+' luồng')+')…';
-    for(const k in PACKS)delete PACKS[k];                                // chuyển hẳn sang luồng AI, không giữ 2 bản trong RAM
-    ENG.timer=setTimeout(()=>{ if(w===ENG.w)engNext('khởi động quá lâu'); },300000);
-    const tr=[model]; if(rt.wasm)tr.push(rt.wasm);
-    w.postMessage({type:'init',ep:cfg.ep,threads:cfg.threads,ortJs:rt.ortJs,mjs:rt.mjs,wasm:rt.wasm,wasmUrl:rt.wasmUrl,model},tr);
-  }catch(e){ engFail(e.message||String(e)); }
+    const rt=await engRuntime();
+    if(!ENG.src||ENG.src.kinds!==cfg.kinds.join()){ XL.modelTxt='Đang tìm nguồn model AI…'; ENG.src=await engFindSrc(cfg.kinds); ENG.src.kinds=cfg.kinds.join(); }
+    AI.kind=ENG.src.kind;
+    ENG.want=engWantWorkers(cfg,caps);
+    const msg={type:'init',ep:cfg.ep,threads:cfg.threads,ortJs:rt.ortJs,mjs:rt.mjs,wasmUrl:rt.wasmUrl,wasmSrc:rt.wasmSrc,src:ENG.src};
+    for(let i=0;i<ENG.want;i++){                        // khởi động lần lượt: luồng đầu tải model, các luồng sau lấy từ bộ nhớ đệm
+      if(ENG.ci>=(ENG.cfgs?ENG.cfgs.length:0))return;
+      let o=ENG.ws[i]; if(!o){ o=engNewWorker(); ENG.ws.push(o); }
+      XL.modelTxt='Đang khởi động AI ('+(cfg.ep==='webgpu'?'card đồ hoạ':'CPU'+(cfg.threads>1?' '+cfg.threads+' luồng':''))+(ENG.want>1?' · luồng '+(i+1)+'/'+ENG.want:'')+')…';
+      const ok=await new Promise(res=>{ o.res=res; o.w.postMessage(msg); setTimeout(()=>res(o.ready),300000); });
+      if(!ok)return;                                    // thất bại -> engDown đã lo đổi cấu hình
+    }
+    XL.modelTxt='';
+  })().catch(e=>{ engFail(e.message||String(e)); }).finally(()=>{ ENG.initP=null; });
+  return ENG.initP;
 }
-function engNext(err){
-  clearTimeout(ENG.timer); AI.err=err;
-  const old=ENG.w; ENG.w=null; try{ old&&old.terminate(); }catch(e){}
-  ENG.ci++; ENG.initing=false; ENG.ready=false; AI.ep='';
-  if(!ENG.cfgs||ENG.ci>=ENG.cfgs.length){ engFail('Không khởi động được AI trên máy này ('+err+')'); return; }
-  engSpawn();                                            // luồng mới + gửi lại việc dở; cần AI sẽ tự xin cấu hình kế tiếp
+/* phát việc cho luồng rảnh; mỗi luồng giữ tối đa 2 việc để luôn có ảnh chuẩn bị sẵn */
+function engPump(){
+  if(!ENG.ws.length)return;
+  for(const [id,j] of ENG.jobs){
+    if(j.sent)continue;
+    let best=null;
+    for(const o of ENG.ws)if(o.jobs.size<2&&(!best||o.jobs.size<best.jobs.size))best=o;
+    if(!best)return;
+    j.sent=true; best.jobs.add(id); best.w.postMessage({type:'job',id,blob:j.blob,mode:j.mode});
+  }
 }
-function engFail(msg){
-  clearTimeout(ENG.timer); AI.err=msg; ENG.fatal=true; ENG.initing=false; ENG.ready=false;
-  const jobs=[...ENG.jobs.values()]; ENG.jobs.clear();
-  try{ ENG.w&&ENG.w.terminate(); }catch(e){} ENG.w=null;
-  jobs.forEach(j=>j.rej(new Error(msg)));
-}
-function engReset(){ if(ENG.fatal){ ENG.fatal=false; ENG.cfgs=null; ENG.ci=0; AI.err=''; } }
 function aiCut(blob,mode){
   if(mode==='none')return Promise.resolve({blob,method:'none'});
   return new Promise((res,rej)=>{
-    const id=++ENG.seq; ENG.jobs.set(id,{blob,mode,res,rej});
-    if(!ENG.w)engSpawn(); else ENG.w.postMessage({type:'job',id,blob,mode});
+    const id=++ENG.seq; ENG.jobs.set(id,{blob,mode,res,rej,sent:false});
+    if(!ENG.ws.length)ENG.ws.push(engNewWorker());
+    engPump();
   });
 }
-function aiLabel(){ if(!AI.ep)return ''; const k=AI.kind==='u8'?' · model 8-bit':''; return (AI.ep==='webgpu'?'AI: card đồ hoạ (WebGPU)':'AI: CPU · '+AI.threads+' luồng')+k; }
+function aiLabel(){
+  if(!AI.ep)return '';
+  const k=AI.kind==='u8'?' · model 8-bit':'';
+  if(AI.ep==='webgpu')return 'AI: card đồ hoạ (WebGPU)'+k;
+  const n=ENG.ws.length;
+  return 'AI: CPU · '+(AI.threads>1?AI.threads+' luồng':(n>1?n+' luồng song song':'1 luồng'))+k;
+}
+function capsLabel(){
+  const c=AI.caps; if(!c)return '';
+  return 'Máy: '+(c.gpu?'có WebGPU':'KHÔNG có WebGPU')+' · '+(c.iso?'đa luồng bật':'đa luồng tắt')+' · '+(c.cores||'?')+' nhân';
+}
 /* giữ màn hình sáng khi đang chạy lô dài */
 let WL=null;
 async function wakeOn(){ try{ if('wakeLock' in navigator&&document.visibilityState==='visible'&&!WL){ WL=await navigator.wakeLock.request('screen'); WL.addEventListener('release',()=>{ WL=null; }); } }catch(e){ WL=null; } }
@@ -2188,7 +2281,7 @@ document.addEventListener('visibilitychange',()=>{ if(XL.running&&document.visib
 window.addEventListener('beforeunload',e=>{ if(XL.running){ e.preventDefault(); e.returnValue=''; } });
 
 /* ---- tải ảnh Shopee: thử tải thẳng; bị chặn thì qua proxy Google Apps Script ---- */
-const XL={det:null,file:'',jobs:[],urls:new Map(),running:false,paused:false,mode:'auto',keep:'on',conn:'',dlDone:0,cutDone:0,fail:0,aiT:[],feed:null,folder:'on',timer:null,pending:[],skuCol:-1,pos:new Set(),modelTxt:''};
+const XL={det:null,file:'',jobs:[],urls:new Map(),running:false,paused:false,mode:'auto',keep:'on',conn:'',dlDone:0,cutDone:0,fail:0,aiT:[],feed:null,folder:'on',aiWorkers:'auto',timer:null,pending:[],skuCol:-1,pos:new Set(),modelTxt:''};
 function proxyUrl(){ try{ return (localStorage.getItem('ns_shopee_proxy')||'').trim(); }catch(e){ return ''; } }
 function setProxyUrl(v){ try{ localStorage.setItem('ns_shopee_proxy',(v||'').trim()); }catch(e){} }
 async function fetchDirect(u){
@@ -2365,7 +2458,8 @@ function xlModeNote(){
   let warn='';
   if(XL.mode==='auto'||XL.mode==='ai'){
     if(location.protocol==='file:')warn='<br><b>AI không chạy khi mở file trực tiếp</b> — mở app qua link GitHub Pages.';
-    else if(!navigator.gpu)warn='<br><b>Trình duyệt này không có WebGPU</b> → AI chạy bằng CPU (bản nén 8-bit, nhiều luồng) — chậm hơn card đồ hoạ. Nên dùng Chrome/Edge trên máy tính.';
+    else if(AI.caps&&!AI.caps.gpu)warn='<br><b>Máy này không dùng được WebGPU</b> → AI chạy bằng CPU. Kiểm tra <b>chrome://gpu</b> và bật "Use graphics acceleration when available" trong cài đặt Chrome; bật được WebGPU sẽ nhanh hơn CPU rất nhiều.'+(AI.caps.iso?'':'<br>Chưa bật được cách ly nguồn (đa luồng trong 1 luồng AI) — app bù bằng cách chạy nhiều luồng AI song song.');
+    else if(!navigator.gpu)warn='<br><b>Trình duyệt này không có WebGPU</b> → AI chạy bằng CPU. Nên dùng Chrome/Edge trên máy tính.';
   }
   el.innerHTML=txt+warn; el.classList.toggle('warn',!!warn);
 }
@@ -2423,6 +2517,7 @@ function xlUi(){
   const chips=[];
   if(XL.conn)chips.push('<span class="chip">'+(XL.conn==='proxy'?'Tải qua proxy':'Tải thẳng từ Shopee')+'</span>');
   if(AI.ep)chips.push('<span class="chip">'+aiLabel()+'</span>');
+  if(AI.caps)chips.push('<span class="chip'+(AI.caps.gpu?'':' warn')+'">'+capsLabel()+'</span>');
   if(XL.modelTxt)chips.push('<span class="chip warn">'+XL.modelTxt+'</span>');
   if(XL.aiT.length>=3){ const avg=(XL.aiT[XL.aiT.length-1]-XL.aiT[0])/(XL.aiT.length-1), left=recs.filter(r=>r.st!=='xong'&&r.st!=='loi').length;
     chips.push('<span class="chip">'+(avg/1000).toFixed(1)+' giây/ảnh AI</span>');
@@ -2438,7 +2533,10 @@ function xlUi(){
   if(!XL.running&&XL.timer){ clearInterval(XL.timer); XL.timer=null; }
 }
 function xlWire(){
-  const open=()=>{ $('#xlBg').classList.add('show'); if(!XL.det){ xlSetStep(1); } };
+  const open=()=>{
+    $('#xlBg').classList.add('show'); if(!XL.det)xlSetStep(1);
+    engCaps().then(c=>{ const e=$('#xlCaps'); if(e)e.textContent=capsLabel(); xlModeNote(); }).catch(()=>{ const e=$('#xlCaps'); if(e)e.textContent='không kiểm được'; });
+  };
   $('#btnExcel').onclick=open; const pe=$('#btnPickExcel'); if(pe)pe.onclick=open;
   $('#xlClose').onclick=()=>$('#xlBg').classList.remove('show');
   $('#xlHide').onclick=()=>$('#xlBg').classList.remove('show');
@@ -2451,6 +2549,7 @@ function xlWire(){
   dz.addEventListener('drop',e=>{ const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f)xlOpenFile(f); });
   $('#xlFilter').oninput=xlRecount;
   Seg($('#xlMode'),[{v:'auto',label:'Tự động'},{v:'ai',label:'AI tất cả'},{v:'plain',label:'Nền phẳng'},{v:'none',label:'Không tách'}],()=>XL.mode,v=>{ XL.mode=v; xlModeNote(); });
+  Sel($('#xlWorkers'),[{v:'auto',label:'Tự động'},{v:'1',label:'1 luồng'},{v:'2',label:'2 luồng'},{v:'3',label:'3 luồng · cần nhiều RAM'},{v:'4',label:'4 luồng · cần nhiều RAM'}],()=>XL.aiWorkers,v=>{ XL.aiWorkers=v; if(ENG.cfgs){ ENG.ci=Math.max(0,ENG.ci-1); engNextCfg('đổi số luồng'); } });
   Seg($('#xlFolder'),[{v:'on',label:'Có'},{v:'off',label:'Không'}],()=>XL.folder,v=>{ XL.folder=v; xlRecount(); });
   Seg($('#xlKeep'),[{v:'on',label:'Có'},{v:'off',label:'Không'}],()=>XL.keep,v=>{ XL.keep=v; });
   $('#xlProxy').value=proxyUrl();
