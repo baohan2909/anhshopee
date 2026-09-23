@@ -1,0 +1,30 @@
+{
+ "label": "model AI 8-bit",
+ "size": 46360717,
+ "sha256": "f1b1c6f7656e532627697afc989d953be1e7ef8f55a718f3611e8c9fd50cdef7",
+ "model": "isnet-general-use",
+ "license": "Apache-2.0",
+ "precision": "uint8",
+ "parts": [
+  {
+   "name": "isnet-u8.part01",
+   "size": 10485760
+  },
+  {
+   "name": "isnet-u8.part02",
+   "size": 10485760
+  },
+  {
+   "name": "isnet-u8.part03",
+   "size": 10485760
+  },
+  {
+   "name": "isnet-u8.part04",
+   "size": 10485760
+  },
+  {
+   "name": "isnet-u8.part05",
+   "size": 4417677
+  }
+ ]
+}

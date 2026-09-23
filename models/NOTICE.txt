@@ -1,0 +1,2 @@
+IS-Net (isnet-general-use) — Xuebin Qin et al., ECCV 2022 — Apache License 2.0 (LICENSE-ISNet.md).
+isnet-u8: ban 8-bit tu isnet-general-use.
