@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  anhshopee — NS · XỬ LÝ ẢNH   v1.3.8
+  anhshopee — NS · XỬ LÝ ẢNH   v1.3.9
   Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT. Chạy 100% trong trình duyệt, không server.
   Chạy: bấm đúp file này (local), hoặc thả vào repo GitHub → GitHub Pages tự chạy.
 -->
@@ -85,6 +85,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .brand .tt{min-width:0}
 .brand h1{font-size:18px;color:#fff;letter-spacing:.04em;line-height:1.05;white-space:nowrap}
 .brand .sub{font-size:11.5px;color:rgba(255,255,255,.72);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand .sub b{margin-left:6px;padding:1px 6px;border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;color:#fff;background:rgba(255,255,255,.18)}
 .cmd-sp{flex:1}
 .hd-chip{
   display:flex;align-items:center;gap:9px;font-size:12px;color:rgba(255,255,255,.9);
@@ -406,7 +407,7 @@ input[type=range].rng::-moz-range-thumb{width:15px;height:15px;border-radius:50%
       </div>
       <div class="tt">
         <h1>NS · XỬ LÝ ẢNH</h1>
-        <div class="sub">Xử lý ảnh hàng loạt cho Shopee &amp; sàn TMĐT</div>
+        <div class="sub">Xử lý ảnh hàng loạt cho Shopee &amp; sàn TMĐT <b id="appVer" title="Phiên bản đang chạy">v—</b></div>
       </div>
     </div>
     <div class="cmd-sp"></div>
@@ -780,6 +781,7 @@ const state={
   filter:'',
   seq:0,
 };
+const APP_VER='1.3.9';
 const S={
   bg:{type:'white',color:'#ffffff',imageId:null,fit:'cover'},
   fit:{mode:'main',basis:'frame',edge:'short',target:60,maxLong:90,alignY:'center',anchorY:54,baseline:85,safeTop:17,safeSide:3,guard:'on',showBox:'on'},
@@ -1939,23 +1941,26 @@ function maskClean(m,w,h,opt){
   }
   // giữ đúng vùng quanh sản phẩm được giữ; mọi điểm mờ lạc -> bỏ (dùng luôn kết quả tách cụm)
   for(let p=0;p<n;p++){ const l=lab[p]; if(l<0||drop[l])m[p]=0; }
-  // lấp lỗ NHỎ bên trong, giữ lỗ LỚN (lòng nón rỗng thật)
+  // lấp lỗ NHỎ bên trong, giữ lỗ LỚN so với CHÍNH cụm chứa nó (lòng nón rỗng thật)
+  const area=new Int32Array(comps.length);
+  for(const c of live)area[c.id]=c.area;
   const seen=new Uint8Array(n); let sp=0, filled=0;
   const pushB=p=>{ if(!seen[p]&&m[p]<128){ seen[p]=1; st[sp++]=p; } };
   for(let x=0;x<w;x++){ pushB(x); pushB((h-1)*w+x); }
   for(let y=0;y<h;y++){ pushB(y*w); pushB(y*w+w-1); }
   while(sp){ const p=st[--sp], x=p%w;
     if(x>0)pushB(p-1); if(x<w-1)pushB(p+1); if(p>=w)pushB(p-w); if(p<n-w)pushB(p+w); }
-  const lim=big*fillMax, hole=new Int32Array(n);
+  const hole=new Int32Array(n), tally=new Map(), ratio=opt.holeRatio==null?0.45:opt.holeRatio;
   for(let p0=0;p0<n;p0++){
     if(seen[p0]||m[p0]>=128)continue;
-    let sp2=0, cnt=0; st[sp2++]=p0; seen[p0]=1; hole[cnt++]=p0;
-    while(sp2){ const p=st[--sp2], x=p%w; let q;
-      if(x>0){ q=p-1; if(!seen[q]&&m[q]<128){ seen[q]=1; st[sp2++]=q; hole[cnt++]=q; } }
-      if(x<w-1){ q=p+1; if(!seen[q]&&m[q]<128){ seen[q]=1; st[sp2++]=q; hole[cnt++]=q; } }
-      if(p>=w){ q=p-w; if(!seen[q]&&m[q]<128){ seen[q]=1; st[sp2++]=q; hole[cnt++]=q; } }
-      if(p<n-w){ q=p+w; if(!seen[q]&&m[q]<128){ seen[q]=1; st[sp2++]=q; hole[cnt++]=q; } } }
-    if(cnt<lim){ for(let i=0;i<cnt;i++)m[hole[i]]=255; filled++; }
+    let sp2=0, cnt=0; st[sp2++]=p0; seen[p0]=1; hole[cnt++]=p0; tally.clear();
+    const look=q=>{ if(m[q]>=128){ const l=lab[q]; if(l>=0&&!drop[l])tally.set(l,(tally.get(l)||0)+1); return; }
+                    if(!seen[q]){ seen[q]=1; st[sp2++]=q; hole[cnt++]=q; } };
+    while(sp2){ const p=st[--sp2], x=p%w;
+      if(x>0)look(p-1); if(x<w-1)look(p+1); if(p>=w)look(p-w); if(p<n-w)look(p+w); }
+    let own=big, best=0;                                  // cụm bao quanh chính lỗ này
+    tally.forEach((v,l)=>{ if(v>best){ best=v; own=area[l]||big; } });
+    if(cnt<own*ratio){ for(let i=0;i<cnt;i++)m[hole[i]]=255; filled++; }
   }
   return {kept:live.length-dropped,dropped,filled};
 }
@@ -2683,6 +2688,7 @@ function xlWire(){
 }
 
 buildPanel(); updateFrameUI(); renderBgAssets(); renderGrid(); updateCounts(); wire(); initInstall(); xlWire();
+{ const e=$('#appVer'); if(e)e.textContent='v'+APP_VER; }
 if(!('showDirectoryPicker' in window)){ /* folder-save unsupported: button will toast on click */ }
 })();
 </script>
