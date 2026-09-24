@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  anhshopee — NS · XỬ LÝ ẢNH   v1.3.9
+  anhshopee — NS · XỬ LÝ ẢNH   v1.3.10
   Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT. Chạy 100% trong trình duyệt, không server.
   Chạy: bấm đúp file này (local), hoặc thả vào repo GitHub → GitHub Pages tự chạy.
 -->
@@ -781,7 +781,7 @@ const state={
   filter:'',
   seq:0,
 };
-const APP_VER='1.3.9';
+const APP_VER='1.3.10';
 const S={
   bg:{type:'white',color:'#ffffff',imageId:null,fit:'cover'},
   fit:{mode:'main',basis:'frame',edge:'short',target:60,maxLong:90,alignY:'center',anchorY:54,baseline:85,safeTop:17,safeSide:3,guard:'on',showBox:'on'},
@@ -1961,6 +1961,13 @@ function maskClean(m,w,h,opt){
     let own=big, best=0;                                  // cụm bao quanh chính lỗ này
     tally.forEach((v,l)=>{ if(v>best){ best=v; own=area[l]||big; } });
     if(cnt<own*ratio){ for(let i=0;i<cnt;i++)m[hole[i]]=255; filled++; }
+  }
+  // làm ĐẶC phần ruột: điểm nằm sâu bên trong mà chỉ mờ mờ -> đục hẳn
+  // (nón trắng/lưỡi trai hay bị AI trả về 60-85% đục, đặt lên nền tối nhìn như bẩn)
+  if(opt.harden!==false){
+    const thin=new Uint8Array(n); for(let i=0;i<n;i++)thin[i]=m[i]<60?1:0;      // vùng nền / mép ngoài
+    const nearBg=new Uint8Array(n); dilate1(thin,nearBg,w,h,opt.edgeSoft==null?3:opt.edgeSoft);
+    for(let i=0;i<n;i++)if(!nearBg[i]&&m[i]>=60)m[i]=255;
   }
   return {kept:live.length-dropped,dropped,filled};
 }
