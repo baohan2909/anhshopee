@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  anhshopee — NS · XỬ LÝ ẢNH   v1.3.10
+  anhshopee — NS · XỬ LÝ ẢNH   v1.3.11
   Xử lý ảnh hàng loạt cho Shopee & sàn TMĐT. Chạy 100% trong trình duyệt, không server.
   Chạy: bấm đúp file này (local), hoặc thả vào repo GitHub → GitHub Pages tự chạy.
 -->
@@ -781,7 +781,7 @@ const state={
   filter:'',
   seq:0,
 };
-const APP_VER='1.3.10';
+const APP_VER='1.3.11';
 const S={
   bg:{type:'white',color:'#ffffff',imageId:null,fit:'cover'},
   fit:{mode:'main',basis:'frame',edge:'short',target:60,maxLong:90,alignY:'center',anchorY:54,baseline:85,safeTop:17,safeSide:3,guard:'on',showBox:'on'},
@@ -1945,7 +1945,9 @@ function maskClean(m,w,h,opt){
   const area=new Int32Array(comps.length);
   for(const c of live)area[c.id]=c.area;
   const seen=new Uint8Array(n); let sp=0, filled=0;
-  const pushB=p=>{ if(!seen[p]&&m[p]<128){ seen[p]=1; st[sp++]=p; } };
+  let bs0=0,bs1=0,bs2=0,bn=0;                              // màu nền trung bình (lấy mẫu khi loang biên)
+  const pushB=p=>{ if(!seen[p]&&m[p]<128){ seen[p]=1; st[sp++]=p;
+    if(px&&(p&7)===0){ const i=p*4; bs0+=px[i]; bs1+=px[i+1]; bs2+=px[i+2]; bn++; } } };
   for(let x=0;x<w;x++){ pushB(x); pushB((h-1)*w+x); }
   for(let y=0;y<h;y++){ pushB(y*w); pushB(y*w+w-1); }
   while(sp){ const p=st[--sp], x=p%w;
@@ -1960,7 +1962,14 @@ function maskClean(m,w,h,opt){
       if(x>0)look(p-1); if(x<w-1)look(p+1); if(p>=w)look(p-w); if(p<n-w)look(p+w); }
     let own=big, best=0;                                  // cụm bao quanh chính lỗ này
     tally.forEach((v,l)=>{ if(v>best){ best=v; own=area[l]||big; } });
-    if(cnt<own*ratio){ for(let i=0;i<cnt;i++)m[hole[i]]=255; filled++; }
+    let fill=cnt<own*ratio;                               // lỗ nhỏ: lấp luôn
+    if(!fill&&px&&bn>50){                                 // lỗ lớn: nhìn nội dung bên trong
+      const br=bs0/bn, bg2=bs1/bn, bb=bs2/bn;
+      let like=0, sam=0;
+      for(let i=0;i<cnt;i+=3){ const q=hole[i]*4, d=Math.max(Math.abs(px[q]-br),Math.abs(px[q+1]-bg2),Math.abs(px[q+2]-bb)); sam++; if(d<=45)like++; }
+      if(sam&&like/sam<0.6)fill=true;                     // không giống nền -> là chất liệu sản phẩm -> lấp
+    }
+    if(fill){ for(let i=0;i<cnt;i++)m[hole[i]]=255; filled++; }
   }
   // làm ĐẶC phần ruột: điểm nằm sâu bên trong mà chỉ mờ mờ -> đục hẳn
   // (nón trắng/lưỡi trai hay bị AI trả về 60-85% đục, đặt lên nền tối nhìn như bẩn)
